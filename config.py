@@ -15,6 +15,10 @@ paths = [
     "savage",
     "pictureeeeeeeeeee",
     "devotskii",
+    "heartbreak2",
+    "frissxon",
+    "public190798808",
+    "mmmteltse"
 
     # Nudes
     "yorksthebrand",
@@ -23,6 +27,8 @@ paths = [
     "ostanovimypain",
     "aestheticfeels"
 ]
+
+paths = list(set(paths))
 
 categories = [
     "nudes", "aesthetics"
