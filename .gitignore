@@ -143,3 +143,9 @@ config.sh
 
 # PyCharm
 .idea
+
+# Test files
+test.py
+
+# Database
+photos.json

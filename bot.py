@@ -2,69 +2,95 @@ import logging
 import os
 import random
 
-from telegram import Update, ForceReply
+import telegram
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 from config import TELEGRAM_BOT_HTTP_API_TOKEN
+from json_database import *
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
-
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+reply_keyboard = [
+    ["/nudes", "/aesthetics"],
+    ["/nude_photo", "/aesthetic_photo"]
+]
+markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
-# Define a few command handlers. These usually take the two arguments update and
-# context.
+
+def get_random_photo():
+    vibe_path = random.choice(os.listdir("photos"))
+    public_path = random.choice(os.listdir(f"photos/{vibe_path}"))
+    photo_path = random.choice(os.listdir(f"photos/{vibe_path}/{public_path}"))
+
+    return f"photos/{vibe_path}/{public_path}/{photo_path}"
+
+
 def start(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /start is issued."""
-    user = update.effective_user
-    update.message.reply_markdown_v2(
-        fr'Hi {user.mention_markdown_v2()}\!',
-        reply_markup=ForceReply(selective=True),
+    update.message.reply_text(
+        "Hello",
+        reply_markup=markup,
     )
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /help is issued."""
     update.message.reply_text("HELP!")
 
 
-def send_boobs(update: Update, context: CallbackContext) -> None:
-    public_path = random.choice(os.listdir("photos"))
-    photo_path = random.choice(os.listdir(f"photos/{public_path}"))
-    with open(f"photos/{public_path}/{photo_path}", "rb") as photo:
-        update.message.reply_photo(photo=photo, caption="BOOBS")
-        logger.info(f"SUCCESS: send {public_path}/{photo_path} to {update.message.from_user.first_name}")
+def send_aesthetics_command(update: Update, context: CallbackContext) -> None:
+    photo_urls = get_five_photo_by_category(category="aesthetics")
+    update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
+    logger.info(f"SUCCESS: five aesthetics photos was sent to {update.message.from_user.name}")
+
+
+def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> None:
+    photo_url = get_one_photo_url_by_category(category="aesthetics")
+    update.message.reply_photo(photo_url)
+    logger.info(f"SUCCESS: one aesthetic photo was sent to {update.message.from_user.name}")
+
+
+def send_nudes_command(update: Update, context: CallbackContext) -> None:
+    photo_urls = get_five_photo_by_category(category="nudes")
+    update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
+    logger.info(f"SUCCESS: five nudes photos was sent to {update.message.from_user.name}")
+
+
+def send_nudes_photo_command(update: Update, context: CallbackContext) -> None:
+    photo_url = get_one_photo_url_by_category(category="nudes")
+    update.message.reply_photo(photo_url)
+    logger.info(f"SUCCESS: one nude photo was sent to {update.message.from_user.name}")
+
+
+def get_photos_number_command(update: Update, context: CallbackContext) -> None:
+    total_photos_number, counter = get_number_of_photos()
+    formatted_counter = '\n'.join([f'*{category}*: {number}' for category, number in counter.items()])
+    update.message.reply_markdown_v2(f"Общее количество фотографий: {total_photos_number}\n\n"
+                                     f"Количество по категориям:\n{formatted_counter}")
+    logger.info(f"photos_number: {total_photos_number}")
 
 
 def echo(update: Update) -> None:
-    """Echo the user message."""
     update.message.reply_text(update.message.text)
 
 
 def main() -> None:
-    """Start the bot."""
-    # Create the Updater and pass it your bot's token.
     updater = Updater(token=TELEGRAM_BOT_HTTP_API_TOKEN)
 
-    # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
-    # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
-    dispatcher.add_handler(CommandHandler("boobs", send_boobs))
+    dispatcher.add_handler(CommandHandler("aesthetics", send_aesthetics_command))
+    dispatcher.add_handler(CommandHandler("nudes", send_nudes_command))
+    dispatcher.add_handler(CommandHandler("aesthetic_photo", send_aesthetic_photo_command))
+    dispatcher.add_handler(CommandHandler("nude_photo", send_nudes_photo_command))
+    dispatcher.add_handler(CommandHandler("number", get_photos_number_command))
 
-    # on non command i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
 
-    # Start the Bot
     updater.start_polling()
 
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 
