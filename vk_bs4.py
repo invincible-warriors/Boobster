@@ -92,6 +92,9 @@ def save_photos(urls: [str], path: str) -> None:
     print(f"\nA total of {total_added_photos_number} photos were added\n"
           f"By categories:\n{total_added_photos_number_counter_formatted}")
 
+    if not total_added_photos_number:
+        print(f"\nCheck the group: https://vk.com/{path}")
+
 
 def main():
     photos_number_before, counter_before = get_number_of_photos()

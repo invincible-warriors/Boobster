@@ -146,6 +146,7 @@ config.sh
 
 # Test files
 test.py
+connect_to_ssh.sh
 
 # Database
-photos.json
+# photos.json

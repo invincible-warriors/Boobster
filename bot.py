@@ -41,7 +41,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
 def send_aesthetics_command(update: Update, context: CallbackContext) -> None:
     photo_urls = get_five_photo_by_category(category="aesthetics")
     update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
-    logger.info(f"SUCCESS: five aesthetics photos was sent to {update.message.from_user.name}")
+    logger.info(f"SUCCESS: five aesthetics photos were sent to {update.message.from_user.name}")
 
 
 def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> None:
@@ -53,7 +53,7 @@ def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> No
 def send_nudes_command(update: Update, context: CallbackContext) -> None:
     photo_urls = get_five_photo_by_category(category="nudes")
     update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
-    logger.info(f"SUCCESS: five nudes photos was sent to {update.message.from_user.name}")
+    logger.info(f"SUCCESS: five nudes photos were sent to {update.message.from_user.name}")
 
 
 def send_nudes_photo_command(update: Update, context: CallbackContext) -> None:

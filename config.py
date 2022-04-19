@@ -18,7 +18,10 @@ paths = [
     "heartbreak2",
     "frissxon",
     "public190798808",
-    "mmmteltse"
+    "mmmteltse",
+    "lovelyyq",
+    "pperfect.bastardd",
+    "dazzlingcommunity"
 
     # Nudes
     "yorksthebrand",
