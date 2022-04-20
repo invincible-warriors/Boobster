@@ -1,8 +1,7 @@
 import os
 
-paths = [
-    # Aesthetics
-    "unreal4iksibiksi"
+paths = list({
+    "unreal4iksibiksi",
     "sswxxww",
     "boringcliche",
     "sweetshawty300",
@@ -21,7 +20,7 @@ paths = [
     "mmmteltse",
     "lovelyyq",
     "pperfect.bastardd",
-    "dazzlingcommunity"
+    "dazzlingcommunity",
 
     # Nudes
     "yorksthebrand",
@@ -29,9 +28,7 @@ paths = [
     "chloe_777",
     "ostanovimypain",
     "aestheticfeels"
-]
-
-paths = list(set(paths))
+})
 
 categories = [
     "nudes", "aesthetics"

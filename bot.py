@@ -70,8 +70,8 @@ def get_photos_number_command(update: Update, context: CallbackContext) -> None:
     logger.info(f"photos_number: {total_photos_number}")
 
 
-def echo(update: Update) -> None:
-    update.message.reply_text(update.message.text)
+def echo(update: Update, context: CallbackContext) -> None:
+    logger.info(f"Text message by {update.message.from_user.name}: {update.message.text}")
 
 
 def main() -> None:

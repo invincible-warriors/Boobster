@@ -65,17 +65,20 @@ def save_photos(urls: [str], path: str) -> None:
     :param str path: The path of community or public
     :return: None
     """
+
+    print(f"[*] {'-' * 10} https://vk.com/{path} {'-' * 10}")
     photos_number_before, counter_before = get_number_of_photos()
 
     for url in urls:
+        short_url = url.split('/')[-1].split('?')[0]
         try:
             if path in ["yorksthebrand", "youisbeautifulpeople", "chloe_777", "ostanovimypain", "aestheticfeels"]:
                 add_photo_url(url, categories=["nudes"])
             else:
                 add_photo_url(url)
-            print(f"Successfully added {url}")
+            print(f"[+] Successfully added {short_url}")
         except Exception as e:
-            print(e, url)
+            print(e, short_url)
 
     photos_number_after, counter_after = get_number_of_photos()
 
@@ -91,9 +94,6 @@ def save_photos(urls: [str], path: str) -> None:
 
     print(f"\nA total of {total_added_photos_number} photos were added\n"
           f"By categories:\n{total_added_photos_number_counter_formatted}")
-
-    if not total_added_photos_number:
-        print(f"\nCheck the group: https://vk.com/{path}")
 
 
 def main():

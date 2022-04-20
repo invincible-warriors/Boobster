@@ -28,7 +28,7 @@ def add_photo_url(url: str, categories=["aesthetics"]) -> None:
 
         urls = [data_json["url"] for data_json in photos]
         if url in urls:
-            raise URLAlreadyExistsError("URL already exists")
+            raise URLAlreadyExistsError("[!] URL already exists")
 
         photos.append({
             "url": url,
@@ -54,7 +54,7 @@ def remove_photo_url(url: str) -> None:
 
         urls = [data_json["url"] for data_json in photos]
         if url not in urls:
-            raise URLNotFoundError("URL not found")
+            raise URLNotFoundError("[!] URL not found")
 
         for obj in photos:
             if obj["url"] != url:
@@ -102,7 +102,7 @@ def get_one_photo_url_by_category(category: str) -> str:
     with open("photos.json", "r") as photos_json:
         photos = json.load(photos_json)
         if category not in categories:
-            raise CategoryNotFoundError("Category not found")
+            raise CategoryNotFoundError("[!] Category not found")
         photos_by_category = [data_json["url"] for data_json in photos if category in data_json["categories"]]
 
         photos_json.close()
@@ -119,7 +119,7 @@ def get_five_photo_by_category(category: str) -> [str]:
     with open("photos.json", "r") as photos_json:
         photos = json.load(photos_json)
         if category not in categories:
-            raise CategoryNotFoundError("Category not found")
+            raise CategoryNotFoundError("[!] Category not found")
         photos_by_category = [data_json["url"] for data_json in photos if category in data_json["categories"]]
 
         photos_json.close()
