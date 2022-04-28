@@ -5,7 +5,6 @@ import telegram
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Updater, ConversationHandler, CommandHandler, MessageHandler, Filters, CallbackContext
 
-from config import TELEGRAM_BOT_HTTP_API_TOKEN, FilterersPhotos
 from json_database import *
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -48,33 +47,33 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def send_aesthetics_command(update: Update, context: CallbackContext) -> None:
-    photo_urls = get_five_photo_by_category(category="aesthetics", file=Files.photos)
+    photo_urls = get_five_photo_by_category(category="aesthetics", file=config.Files.photos)
     update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
     logger.info(f"SUCCESS: five aesthetics photos were sent to {update.message.from_user.name}")
 
 
 def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> None:
-    photo_url = get_one_photo_url_by_category(category="aesthetics", file=Files.photos)
+    photo_url = get_one_photo_url_by_category(category="aesthetics", file=config.Files.photos)
     update.message.reply_photo(photo_url)
     logger.info(f"SUCCESS: one aesthetic photo was sent to {update.message.from_user.name}")
 
 
 def send_nudes_command(update: Update, context: CallbackContext) -> None:
-    photo_urls = get_five_photo_by_category(category="nudes", file=Files.photos)
+    photo_urls = get_five_photo_by_category(category="nudes", file=config.Files.photos)
     update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
     logger.info(f"SUCCESS: five nudes photos were sent to {update.message.from_user.name}")
 
 
 def send_nudes_photo_command(update: Update, context: CallbackContext) -> None:
-    photo_url = get_one_photo_url_by_category(category="nudes", file=Files.photos)
+    photo_url = get_one_photo_url_by_category(category="nudes", file=config.Files.photos)
     update.message.reply_photo(photo_url)
     logger.info(f"SUCCESS: one nude photo was sent to {update.message.from_user.name}")
 
 
 def get_photos_number_command(update: Update, context: CallbackContext) -> None:
-    total_unsorted_photos_number, unsorted_counter = get_number_of_photos(file=Files.unsorted_photos)
+    total_unsorted_photos_number, unsorted_counter = get_number_of_photos(file=config.Files.unsorted_photos)
     unsorted_formatted_counter = '\n'.join([f'{category}: {number}' for category, number in unsorted_counter.items()])
-    total_photos_number, counter = get_number_of_photos(file=Files.photos)
+    total_photos_number, counter = get_number_of_photos(file=config.Files.photos)
     formatted_counter = '\n'.join([f'{category}: {number}' for category, number in counter.items()])
     output = f"Общее количество всех фотографий: {total_unsorted_photos_number}\n" \
              f"Количество по категориям:\n{unsorted_formatted_counter}\n\n" \
@@ -98,30 +97,30 @@ def start_filter(update: Update, context: CallbackContext) -> int:
     logger.info(f"{update.message.from_user.name} started filtering")
     user_id = update.message.from_user.id
     if new_filterer(user_id):
-        text = """Спасибо, что согласились поучаствовать в проекте Boobster.
-Ваша задача фильтровать фотографии для создания базы данных по категориям. 
-Всего есть 4 типа: абсолютные нюдсы, полу нюдсы, эстетичные фотографии и ссаный шлак. Для каждой фотографии будет необходимо определить тип.
-Для фотографии типа абсолютные нюдсы отправьте full_nudes, для нюдсов - nudes, для эстетичных - aesthetics, для мусора - delete.
-Ниже можете ознакомиться с примерами типов."""
+        text = """Спасибо, что согласились поучаствовать в проекте Boobster. Ваша задача фильтровать фотографии для 
+создания базы данных по категориям. Всего есть 4 типа: абсолютные нюдсы, полу нюдсы, эстетичные фотографии и 
+ссаный шлак. Для каждой фотографии будет необходимо определить тип. Для фотографии типа абсолютные нюдсы 
+отправьте full_nudes, для нюдсов - nudes, для эстетичных - aesthetics, для мусора - delete. Ниже можете 
+ознакомиться с примерами типов. """
         update.message.reply_text(text)
         update.message.reply_text(
             "Full nudes - фотографии с частичной или полной оголенностью. Обязательно сиськи, попы, вагины вся хуйня."
         )
         update.message.reply_media_group(
-            media=[telegram.InputMediaPhoto(photo_url) for photo_url in FilterersPhotos.full_nudes]
+            media=[telegram.InputMediaPhoto(photo_url) for photo_url in config.FilterersPhotos.full_nudes]
         )
         update.message.reply_text(
             "Nudes - фотографии, которые вроде и нюдсы, но не видно нихуя. Где одежды есть хотя бы"
         )
         update.message.reply_media_group(
-            media=[telegram.InputMediaPhoto(photo_url) for photo_url in FilterersPhotos.nudes]
+            media=[telegram.InputMediaPhoto(photo_url) for photo_url in config.FilterersPhotos.nudes]
         )
         update.message.reply_text(
             "Aesthetics - фотографии, которые не подходят под первые две категории и не совсем шлак. Всякие милые"
             "девочки, машинки, закаты хуяты, эстетика в общем. Но там блять цитаты всякие, кофты их нахуй в мусор"
         )
         update.message.reply_media_group(
-            media=[telegram.InputMediaPhoto(photo_url) for photo_url in FilterersPhotos.aesthetics])
+            media=[telegram.InputMediaPhoto(photo_url) for photo_url in config.FilterersPhotos.aesthetics])
         add_filterer(user_id)
 
     update.message.reply_text("Удачной сортировки!", reply_markup=filter_markup)
@@ -130,15 +129,15 @@ def start_filter(update: Update, context: CallbackContext) -> int:
     return FILTERING
 
 
-def filtering_filter(update: Update, context: CallbackContext) -> int:
+def filtering_filter(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     user_reply = update.message.text
     photo_url = get_current_url_filterer(user_id)
     if user_reply != "delete":
-        add_photo_url(url=photo_url, categories=[user_reply], file=Files.photos)
-        logger.info(f"Added {photo_url.split('/')[-1].split('?')[0]} to {Files.photos}")
-    remove_photo_url(photo_url, file=Files.unsorted_photos)
-    logger.info(f"Removed {photo_url.split('/')[-1].split('?')[0]} from {Files.unsorted_photos}")
+        add_photo_url(url=photo_url, categories=[user_reply], file=config.Files.photos)
+        logger.info(f"Added {photo_url.split('/')[-1].split('?')[0]} to {config.Files.photos}")
+    remove_photo_url(photo_url, file=config.Files.unsorted_photos)
+    logger.info(f"Removed {photo_url.split('/')[-1].split('?')[0]} from {config.Files.unsorted_photos}")
     send_photo_filter(update, context)
 
 
@@ -149,7 +148,7 @@ def exit_filter(update: Update, context: CallbackContext) -> int:
 
 
 def main() -> None:
-    updater = Updater(token=TELEGRAM_BOT_HTTP_API_TOKEN)
+    updater = Updater(token=config.TELEGRAM_BOT_HTTP_API_TOKEN)
 
     dispatcher = updater.dispatcher
 
