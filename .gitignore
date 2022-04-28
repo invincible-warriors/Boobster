@@ -150,3 +150,6 @@ connect_to_ssh.sh
 
 # Database
 # unsorted_photos.json
+
+# Docker
+Dockerfile
