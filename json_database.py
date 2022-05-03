@@ -41,10 +41,7 @@ def add_photo_url(url: str, categories=None, file=config.Files.unsorted_photos) 
             if url in json.load(blocked_photos):
                 raise URLBlocked("URL blocked")
 
-        photos.append({
-            "url": url,
-            "categories": categories
-        })
+        photos.append({"url": url, "categories": categories})
 
         with open(file, "w") as new_photos_json:
             json.dump(photos, new_photos_json, indent=2)
@@ -110,7 +107,9 @@ def get_five_random_photo_urls(file=config.Files.unsorted_photos) -> list[str]:
         return urls[:5]
 
 
-def get_one_photo_url_by_category(category: str, file=config.Files.unsorted_photos) -> str:
+def get_one_photo_url_by_category(
+    category: str, file=config.Files.unsorted_photos
+) -> str:
     """
     Returns one photo URL by category from the database
 
@@ -124,11 +123,17 @@ def get_one_photo_url_by_category(category: str, file=config.Files.unsorted_phot
         photos = json.load(photos_json)
         if category not in config.categories:
             raise CategoryNotFoundError("Category not found")
-        photos_by_category = [data_json["url"] for data_json in photos if category in data_json["categories"]]
+        photos_by_category = [
+            data_json["url"]
+            for data_json in photos
+            if category in data_json["categories"]
+        ]
         return random.choice(photos_by_category)
 
 
-def get_five_photo_by_category(category: str, file=config.Files.unsorted_photos) -> list[str]:
+def get_five_photo_by_category(
+    category: str, file=config.Files.unsorted_photos
+) -> list[str]:
     """
     Returns five photo URLs by category from the database.
 
@@ -142,13 +147,19 @@ def get_five_photo_by_category(category: str, file=config.Files.unsorted_photos)
         photos = json.load(photos_json)
         if category not in config.categories:
             raise CategoryNotFoundError("Category not found")
-        photos_by_category = [data_json["url"] for data_json in photos if category in data_json["categories"]]
+        photos_by_category = [
+            data_json["url"]
+            for data_json in photos
+            if category in data_json["categories"]
+        ]
 
         random.shuffle(photos_by_category)
         return photos_by_category[:5]
 
 
-def get_number_of_photos(file=config.Files.unsorted_photos) -> tuple[int, dict[str, int]]:
+def get_number_of_photos(
+    file=config.Files.unsorted_photos,
+) -> tuple[int, dict[str, int]]:
     """
     Returns the total number of photos and the number of photos in each category
 
@@ -167,7 +178,9 @@ def get_number_of_photos(file=config.Files.unsorted_photos) -> tuple[int, dict[s
 
         counter = dict()
         for category in categories:
-            counter[category] = len([1 for photo_data in photos if category in photo_data["categories"]])
+            counter[category] = len(
+                [1 for photo_data in photos if category in photo_data["categories"]]
+            )
         all_photos_number = len(photos)
 
         return all_photos_number, counter
@@ -199,9 +212,7 @@ def add_filterer(user_id: int or str) -> None:
         filterers = json.load(filterers)
         if not new_filterer(user_id):
             return
-        filterers[user_id] = {
-            "number": 0
-        }
+        filterers[user_id] = {"number": 0}
         with open(config.Files.filterers, "w") as filterers_json:
             json.dump(filterers, filterers_json, indent=2)
 

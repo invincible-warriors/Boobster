@@ -44,7 +44,7 @@ class FilterersPhotos:
         "&quality=96&type=album",
         "https://sun9-66.userapi.com/s/v1/ig2/guIy4sb7Ssk5nM1N"
         "-OLkzvMwknScglLntKv3M3caFbu5tcC8yXuJzdBnpNgo3qgdOWhOqmWrLAIwY0PNgrZCdIz5.jpg?size=960x1280&quality=95&type"
-        "=album "
+        "=album ",
     ]
     nudes = [
         "https://sun9-6.userapi.com/s/v1/ig2"
@@ -61,7 +61,7 @@ class FilterersPhotos:
         "/ibJ6BLZanA8Ayw9RmDjgUxpfAtGukd37Yxcaf0vSt7onl9gaVfTF3PRw3EI8QxDAAZ3yFjpdZX2Z9MU9S-UunGz2.jpg?size=604x440"
         "&quality=95&type=album",
         "https://sun9-71.userapi.com/s/v1/ig2/E8T1t-OtxQR8pJp-mLSjn2XazDOYx_Ndoi589iu-iZYVQC2O-voV5d"
-        "-2OEerdMxbz2uQBPBgYKgEBB702mSrU5CO.jpg?size=640x1135&quality=96&type=album "
+        "-2OEerdMxbz2uQBPBgYKgEBB702mSrU5CO.jpg?size=640x1135&quality=96&type=album ",
     ]
     aesthetics = [
         "https://sun9-62.userapi.com/s/v1/ig2/wMb1f6FN576AMHaHQfLgJC"
@@ -75,7 +75,7 @@ class FilterersPhotos:
         "https://sun9-66.userapi.com/s/v1/ig2/x0CE8e7-pFNgfpihzjKXLNt65-j9cDuxcxc-yDfopIoUWEJV4hA1R"
         "-N4jj0IrUuzA0yLQC3EBMWUP52M4xgy_l23.jpg?size=1242x1351&quality=95&type=album",
         "https://sun9-8.userapi.com/s/v1/if2/2JhxAFIv1ptThwwFGhaD8rdOccfLpzDarPle1k9sMEA64"
-        "-5HWUlfdaRRdW0LAQvcgRHt9LRJH8jfbLDhluFicdkI.jpg?size=828x852&quality=96&type=album "
+        "-5HWUlfdaRRdW0LAQvcgRHt9LRJH8jfbLDhluFicdkI.jpg?size=828x852&quality=96&type=album ",
     ]
 
 
@@ -88,39 +88,38 @@ class Files:
 
 console_width = 118
 
-paths = list({
-    # "unreal4iksibiksi",
-    # "sswxxww",
-    # "boringcliche",
-    # "sweetshawty300",
-    # "ecstasyshka",
-    # "c6373",
-    # "ssssamura1",
-    # "pcixe_ya",
-    # "chainfor4s",
-    # "imbabysss",
-    # "savage",
-    # "pictureeeeeeeeeee",
-    # "devotskii",
-    # "heartbreak2",
-    # "frissxon",
-    # "public190798808",
-    # "mmmteltse",
-    # "lovelyyq",
-    # "pperfect.bastardd",
-    # "dazzlingcommunity",
+paths = list(
+    {
+        # "unreal4iksibiksi",
+        # "sswxxww",
+        # "boringcliche",
+        # "sweetshawty300",
+        # "ecstasyshka",
+        # "c6373",
+        # "ssssamura1",
+        # "pcixe_ya",
+        # "chainfor4s",
+        # "imbabysss",
+        # "savage",
+        # "pictureeeeeeeeeee",
+        # "devotskii",
+        # "heartbreak2",
+        # "frissxon",
+        # "public190798808",
+        # "mmmteltse",
+        # "lovelyyq",
+        # "pperfect.bastardd",
+        # "dazzlingcommunity",
+        # Nudes
+        "yorksthebrand",
+        "youisbeautifulpeople",
+        "chloe_777",
+        "ostanovimypain",
+        "aestheticfeels",
+    }
+)
 
-    # Nudes
-    "yorksthebrand",
-    "youisbeautifulpeople",
-    "chloe_777",
-    "ostanovimypain",
-    "aestheticfeels"
-})
-
-categories = [
-    "nudes", "aesthetics"
-]
+categories = ["nudes", "aesthetics"]
 
 TELEGRAM_BOT_HTTP_API_TOKEN = os.getenv("TELEGRAM_BOT_HTTP_API_TOKEN")
 MONGO_DB_PASSWORD = os.getenv("MONGO_DB_PASSWORD")

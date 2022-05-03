@@ -3,25 +3,30 @@ import os
 
 import telegram
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Updater, ConversationHandler, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import (
+    Updater,
+    ConversationHandler,
+    CommandHandler,
+    MessageHandler,
+    Filters,
+    CallbackContext,
+)
 
 from json_database import *
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 default_reply_keyboard = [
     ["/nudes", "/aesthetics"],
-    ["/nude_photo", "/aesthetic_photo"]
+    ["/nude_photo", "/aesthetic_photo"],
 ]
 default_markup = ReplyKeyboardMarkup(default_reply_keyboard, resize_keyboard=True)
 
-
 filter_replies = ["delete", "aesthetics", "nudes", "full_nudes"]
-filter_reply_keyboard = [
-    filter_replies,
-    ["/exit"]
-]
+filter_reply_keyboard = [filter_replies, ["/exit"]]
 filter_markup = ReplyKeyboardMarkup(filter_reply_keyboard, resize_keyboard=True)
 
 FILTERING = 0
@@ -47,41 +52,67 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def send_aesthetics_command(update: Update, context: CallbackContext) -> None:
-    photo_urls = get_five_photo_by_category(category="aesthetics", file=config.Files.photos)
-    update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
-    logger.info(f"SUCCESS: five aesthetics photos were sent to {update.message.from_user.name}")
+    photo_urls = get_five_photo_by_category(
+        category="aesthetics", file=config.Files.photos
+    )
+    update.message.reply_media_group(
+        media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls]
+    )
+    logger.info(
+        f"SUCCESS: five aesthetics photos were sent to {update.message.from_user.name}"
+    )
 
 
 def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> None:
-    photo_url = get_one_photo_url_by_category(category="aesthetics", file=config.Files.photos)
+    photo_url = get_one_photo_url_by_category(
+        category="aesthetics", file=config.Files.photos
+    )
     update.message.reply_photo(photo_url)
-    logger.info(f"SUCCESS: one aesthetic photo was sent to {update.message.from_user.name}")
+    logger.info(
+        f"SUCCESS: one aesthetic photo was sent to {update.message.from_user.name}"
+    )
 
 
 def send_nudes_command(update: Update, context: CallbackContext) -> None:
     photo_urls = get_five_photo_by_category(category="nudes", file=config.Files.photos)
-    update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
-    logger.info(f"SUCCESS: five nudes photos were sent to {update.message.from_user.name}")
+    update.message.reply_media_group(
+        media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls]
+    )
+    logger.info(
+        f"SUCCESS: five nudes photos were sent to {update.message.from_user.name}"
+    )
 
 
 def send_nudes_photo_command(update: Update, context: CallbackContext) -> None:
-    photo_url = get_one_photo_url_by_category(category="nudes", file=config.Files.photos)
+    photo_url = get_one_photo_url_by_category(
+        category="nudes", file=config.Files.photos
+    )
     update.message.reply_photo(photo_url)
     logger.info(f"SUCCESS: one nude photo was sent to {update.message.from_user.name}")
 
 
 def get_photos_number_command(update: Update, context: CallbackContext) -> None:
-    total_unsorted_photos_number, unsorted_counter = get_number_of_photos(file=config.Files.unsorted_photos)
-    unsorted_formatted_counter = '\n'.join([f'{category}: {number}' for category, number in unsorted_counter.items()])
+    total_unsorted_photos_number, unsorted_counter = get_number_of_photos(
+        file=config.Files.unsorted_photos
+    )
+    unsorted_formatted_counter = "\n".join(
+        [f"{category}: {number}" for category, number in unsorted_counter.items()]
+    )
     total_photos_number, counter = get_number_of_photos(file=config.Files.photos)
-    formatted_counter = '\n'.join([f'{category}: {number}' for category, number in counter.items()])
-    output = f"Общее количество всех фотографий: {total_unsorted_photos_number}\n" \
-             f"Количество по категориям:\n{unsorted_formatted_counter}\n\n" \
-             f"Общее количество сортированных фотографий: {total_photos_number}\n" \
-             f"Количество по категориям:\n{formatted_counter}"
+    formatted_counter = "\n".join(
+        [f"{category}: {number}" for category, number in counter.items()]
+    )
+    output = (
+        f"Общее количество всех фотографий: {total_unsorted_photos_number}\n"
+        f"Количество по категориям:\n{unsorted_formatted_counter}\n\n"
+        f"Общее количество сортированных фотографий: {total_photos_number}\n"
+        f"Количество по категориям:\n{formatted_counter}"
+    )
     logger.info(output)
     update.message.reply_text(output)
-    logger.info(f"unsorted photos number: {total_unsorted_photos_number}, sorted photos number: {total_photos_number}")
+    logger.info(
+        f"unsorted photos number: {total_unsorted_photos_number}, sorted photos number: {total_photos_number}"
+    )
 
 
 def send_photo_filter(update: Update, context: CallbackContext):
@@ -107,20 +138,30 @@ def start_filter(update: Update, context: CallbackContext) -> int:
             "Full nudes - фотографии с частичной или полной оголенностью. Обязательно сиськи, попы, вагины вся хуйня."
         )
         update.message.reply_media_group(
-            media=[telegram.InputMediaPhoto(photo_url) for photo_url in config.FilterersPhotos.full_nudes]
+            media=[
+                telegram.InputMediaPhoto(photo_url)
+                for photo_url in config.FilterersPhotos.full_nudes
+            ]
         )
         update.message.reply_text(
             "Nudes - фотографии, которые вроде и нюдсы, но не видно нихуя. Где одежды есть хотя бы"
         )
         update.message.reply_media_group(
-            media=[telegram.InputMediaPhoto(photo_url) for photo_url in config.FilterersPhotos.nudes]
+            media=[
+                telegram.InputMediaPhoto(photo_url)
+                for photo_url in config.FilterersPhotos.nudes
+            ]
         )
         update.message.reply_text(
             "Aesthetics - фотографии, которые не подходят под первые две категории и не совсем шлак. Всякие милые"
             "девочки, машинки, закаты хуяты, эстетика в общем. Но там блять цитаты всякие, кофты их нахуй в мусор"
         )
         update.message.reply_media_group(
-            media=[telegram.InputMediaPhoto(photo_url) for photo_url in config.FilterersPhotos.aesthetics])
+            media=[
+                telegram.InputMediaPhoto(photo_url)
+                for photo_url in config.FilterersPhotos.aesthetics
+            ]
+        )
         add_filterer(user_id)
 
     update.message.reply_text("Удачной сортировки!", reply_markup=filter_markup)
@@ -135,9 +176,13 @@ def filtering_filter(update: Update, context: CallbackContext) -> None:
     photo_url = get_current_url_filterer(user_id)
     if user_reply != "delete":
         add_photo_url(url=photo_url, categories=[user_reply], file=config.Files.photos)
-        logger.info(f"Added {photo_url.split('/')[-1].split('?')[0]} to {config.Files.photos}")
+        logger.info(
+            f"Added {photo_url.split('/')[-1].split('?')[0]} to {config.Files.photos}"
+        )
     remove_photo_url(photo_url, file=config.Files.unsorted_photos)
-    logger.info(f"Removed {photo_url.split('/')[-1].split('?')[0]} from {config.Files.unsorted_photos}")
+    logger.info(
+        f"Removed {photo_url.split('/')[-1].split('?')[0]} from {config.Files.unsorted_photos}"
+    )
     send_photo_filter(update, context)
 
 
@@ -156,16 +201,22 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("aesthetics", send_aesthetics_command))
     dispatcher.add_handler(CommandHandler("nudes", send_nudes_command))
-    dispatcher.add_handler(CommandHandler("aesthetic_photo", send_aesthetic_photo_command))
+    dispatcher.add_handler(
+        CommandHandler("aesthetic_photo", send_aesthetic_photo_command)
+    )
     dispatcher.add_handler(CommandHandler("nude_photo", send_nudes_photo_command))
     dispatcher.add_handler(CommandHandler("number", get_photos_number_command))
 
     filter_handler = ConversationHandler(
         entry_points=[CommandHandler("start_filter", start_filter)],
         states={
-            FILTERING: [MessageHandler(Filters.regex(f"^({'|'.join(filter_replies)})$"), filtering_filter)]
+            FILTERING: [
+                MessageHandler(
+                    Filters.regex(f"^({'|'.join(filter_replies)})$"), filtering_filter
+                )
+            ]
         },
-        fallbacks=[CommandHandler("exit", exit_filter)]
+        fallbacks=[CommandHandler("exit", exit_filter)],
     )
 
     dispatcher.add_handler(filter_handler)
@@ -174,5 +225,5 @@ def main() -> None:
     updater.idle()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

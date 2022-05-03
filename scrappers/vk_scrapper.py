@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from json_database import *
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -32,18 +32,28 @@ def get_urls_soup(path: str) -> list[str]:
     last_height = driver.execute_script("return document.body.scrollHeight")
     clicked_close = False
     wall_posts = driver.find_element(By.ID, "page_wall_posts")
-    post_id = wall_posts.find_element(By.CSS_SELECTOR, "div._post.post.page_block").get_attribute("id")
+    post_id = wall_posts.find_element(
+        By.CSS_SELECTOR, "div._post.post.page_block"
+    ).get_attribute("id")
     while True:
         if post_id not in checked_posts:
             logger.info(post_id)
             post = wall_posts.find_element(By.ID, post_id)
-            photos = post.find_elements(By.CSS_SELECTOR, "a.page_post_thumb_wrap.image_cover")
+            photos = post.find_elements(
+                By.CSS_SELECTOR, "a.page_post_thumb_wrap.image_cover"
+            )
             for photo in photos:
                 # checks if photo is photo and not a fucking video
                 if "page_post_thumb_video" in photo.get_attribute("class"):
                     continue
-                photo_url = photo.get_attribute("onclick") \
-                    .split("[")[-1].split("]")[0].split(",")[0].replace("\\", "").replace('"', "")
+                photo_url = (
+                    photo.get_attribute("onclick")
+                    .split("[")[-1]
+                    .split("]")[0]
+                    .split(",")[0]
+                    .replace("\\", "")
+                    .replace('"', "")
+                )
                 urls.append(photo_url)
 
         try:
@@ -61,11 +71,13 @@ def get_urls_soup(path: str) -> list[str]:
             if not clicked_close:
                 clicked_close = True
                 WebDriverWait(driver, 20).until(
-                    expected_conditions.visibility_of_all_elements_located((By.CLASS_NAME, "UnauthActionBox__close"))
+                    expected_conditions.visibility_of_all_elements_located(
+                        (By.CLASS_NAME, "UnauthActionBox__close")
+                    )
                 )
                 driver.find_element(By.CLASS_NAME, "UnauthActionBox__close").click()
 
-            time.sleep(.5)
+            time.sleep(0.5)
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
                 break
@@ -94,11 +106,17 @@ def save_info(func):
         total_added_photos_number = photos_number_after - photos_number_before
         total_added_photos_number_counter = {}
         for category, number in counter_after.items():
-            total_added_photos_number_counter[category] = counter_after[category] - counter_before.get(category, 0)
+            total_added_photos_number_counter[category] = counter_after[
+                category
+            ] - counter_before.get(category, 0)
 
-        total_added_photos_number_counter_formatted = ("\n" + f"[{config.ColoredSymbols.vertical}] - ").join(
-            [f"{category}: {config.Colors.purple}{number}{config.Colors.white} new photos were added" for category, number
-             in total_added_photos_number_counter.items()]
+        total_added_photos_number_counter_formatted = (
+            "\n" + f"[{config.ColoredSymbols.vertical}] - "
+        ).join(
+            [
+                f"{category}: {config.Colors.purple}{number}{config.Colors.white} new photos were added"
+                for category, number in total_added_photos_number_counter.items()
+            ]
         )
 
         info_text = " INFO ".center(config.console_width - 4, "-")
@@ -128,13 +146,18 @@ def save_photos(urls: [str], path: str) -> None:
 
     with alive_bar(len(urls), force_tty=True, dual_line=True, title=global_url) as bar:
         for url in urls:
-            time.sleep(.005)
-            short_url = url.split('/')[-1].split('?')[0]
+            time.sleep(0.005)
+            short_url = url.split("/")[-1].split("?")[0]
             short_url = short_url[:20] + "..." + short_url[60:]
 
             try:
-                if path in ["yorksthebrand", "youisbeautifulpeople", "chloe_777", "ostanovimypain",
-                            "aestheticfeels"]:
+                if path in [
+                    "yorksthebrand",
+                    "youisbeautifulpeople",
+                    "chloe_777",
+                    "ostanovimypain",
+                    "aestheticfeels",
+                ]:
                     add_photo_url(url, categories=["nudes"])
                 else:
                     add_photo_url(url)
