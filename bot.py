@@ -12,11 +12,11 @@ from telegram.ext import (
     CallbackContext,
 )
 
-from json_database import *
+from database.database import *
+import config
+from config import Colors as C
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 default_reply_keyboard = [
@@ -25,26 +25,18 @@ default_reply_keyboard = [
 ]
 default_markup = ReplyKeyboardMarkup(default_reply_keyboard, resize_keyboard=True)
 
-filter_replies = ["delete", "aesthetics", "nudes", "full_nudes"]
-filter_reply_keyboard = [filter_replies, ["/exit"]]
-filter_markup = ReplyKeyboardMarkup(filter_reply_keyboard, resize_keyboard=True)
+sorting_replies = ["delete", "aesthetics", "nudes", "full_nudes"]
+sorting_reply_keyboard = [sorting_replies, ["/exit"]]
+sorting_markup = ReplyKeyboardMarkup(sorting_reply_keyboard, resize_keyboard=True)
 
-FILTERING = 0
+SORTING = 0
 
-
-def get_random_photo():
-    vibe_path = random.choice(os.listdir("photos"))
-    public_path = random.choice(os.listdir(f"photos/{vibe_path}"))
-    photo_path = random.choice(os.listdir(f"photos/{vibe_path}/{public_path}"))
-
-    return f"photos/{vibe_path}/{public_path}/{photo_path}"
+photos = Photos()
+users = Users()
 
 
 def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(
-        "Hello",
-        reply_markup=default_markup,
-    )
+    update.message.reply_text("Hello", reply_markup=default_markup)
 
 
 def help_command(update: Update, context: CallbackContext) -> None:
@@ -52,83 +44,62 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def send_aesthetics_command(update: Update, context: CallbackContext) -> None:
-    photo_urls = get_five_photo_by_category(
-        category="aesthetics", file=config.Files.photos
-    )
-    update.message.reply_media_group(
-        media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls]
-    )
-    logger.info(
-        f"SUCCESS: five aesthetics photos were sent to {update.message.from_user.name}"
-    )
+    photo_urls = photos.get_five_photo_by_category(category="aesthetics")
+    update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
+    logger.info(f"{C.green}SUCCESS{C.white}: five aesthetics photos were sent to {C.blue}"
+                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
 
 
 def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> None:
-    photo_url = get_one_photo_url_by_category(
-        category="aesthetics", file=config.Files.photos
-    )
+    photo_url = photos.get_one_photo_url_by_category(category="aesthetics")
     update.message.reply_photo(photo_url)
-    logger.info(
-        f"SUCCESS: one aesthetic photo was sent to {update.message.from_user.name}"
-    )
+    logger.info(f"{C.green}SUCCESS{C.white}: one aesthetic photo was sent to {C.blue}"
+                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
 
 
 def send_nudes_command(update: Update, context: CallbackContext) -> None:
-    photo_urls = get_five_photo_by_category(category="nudes", file=config.Files.photos)
-    update.message.reply_media_group(
-        media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls]
-    )
-    logger.info(
-        f"SUCCESS: five nudes photos were sent to {update.message.from_user.name}"
-    )
+    photo_urls = photos.get_five_photo_by_category(category="nudes")
+    update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
+    logger.info(f"{C.green}SUCCESS{C.white}: five nudes photos were sent to {C.blue}"
+                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
 
 
 def send_nudes_photo_command(update: Update, context: CallbackContext) -> None:
-    photo_url = get_one_photo_url_by_category(
-        category="nudes", file=config.Files.photos
-    )
+    photo_url = photos.get_one_photo_url_by_category(category="nudes")
     update.message.reply_photo(photo_url)
-    logger.info(f"SUCCESS: one nude photo was sent to {update.message.from_user.name}")
+    logger.info(f"{C.green}SUCCESS{C.white}: one nude photo was sent to {C.blue}"
+                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
 
 
 def get_photos_number_command(update: Update, context: CallbackContext) -> None:
-    total_unsorted_photos_number, unsorted_counter = get_number_of_photos(
-        file=config.Files.unsorted_photos
+    counters = photos.get_statistics_of_photos()
+    allowed_photos_formatted = "\n".join(
+        f"{category}: {number}" for category, number in counters[config.Collections.allowed].items()
     )
-    unsorted_formatted_counter = "\n".join(
-        [f"{category}: {number}" for category, number in unsorted_counter.items()]
+    update.message.reply_text(
+        f"Статистика по фотографиям:\n"
+        f"{config.Collections.allowed}:\n{allowed_photos_formatted}\n\n"
+        f"{config.Collections.unsorted}: {counters[config.Collections.unsorted]}\n"
+        f"{config.Collections.blocked}: {counters[config.Collections.blocked]}"
     )
-    total_photos_number, counter = get_number_of_photos(file=config.Files.photos)
-    formatted_counter = "\n".join(
-        [f"{category}: {number}" for category, number in counter.items()]
-    )
-    output = (
-        f"Общее количество всех фотографий: {total_unsorted_photos_number}\n"
-        f"Количество по категориям:\n{unsorted_formatted_counter}\n\n"
-        f"Общее количество сортированных фотографий: {total_photos_number}\n"
-        f"Количество по категориям:\n{formatted_counter}"
-    )
-    logger.info(output)
-    update.message.reply_text(output)
-    logger.info(
-        f"unsorted photos number: {total_unsorted_photos_number}, sorted photos number: {total_photos_number}"
-    )
+    logger.info(f"Statistics of photos (asked by {C.blue}{update.message.from_user.first_name} "
+                f"(id: {update.message.from_user.id}){C.white}): {counters}")
 
 
-def send_photo_filter(update: Update, context: CallbackContext):
-    photo_url = get_one_photo_url_by_category("nudes")
-    user_id = update.message.from_user.id
+def send_photo_sorting(update: Update, context: CallbackContext):
+    photo_url = photos.get_photo_for_sorting()
+    user = update.message.from_user
     update.message.reply_photo(photo=photo_url)
-    set_current_url_filterer(user_id=user_id, photo_url=photo_url)
-    logger.info(f"Set current_url = {photo_url}\n to user_id: {user_id}")
-    return FILTERING
+    users.set_current_url_sorter(user, photo_url)
+    logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: Set photo_url for sorter ")
+    return SORTING
 
 
-def start_filter(update: Update, context: CallbackContext) -> int:
-    logger.info(f"{update.message.from_user.name} started filtering")
-    user_id = update.message.from_user.id
-    if new_filterer(user_id):
-        text = """Спасибо, что согласились поучаствовать в проекте Boobster. Ваша задача фильтровать фотографии для 
+def start_sorting(update: Update, context: CallbackContext) -> int:
+    user = update.message.from_user
+    logger.info(f"{C.blue}{update.message.from_user.first_name} (id:{user.id}){C.white}: started sorting")
+    if not users.is_sorter(user.id):
+        text = """Спасибо, что согласились поучаствовать в проекте Boobster. Ваша задача сортировать фотографии для 
 создания базы данных по категориям. Всего есть 4 типа: абсолютные нюдсы, полу нюдсы, эстетичные фотографии и 
 ссаный шлак. Для каждой фотографии будет необходимо определить тип. Для фотографии типа абсолютные нюдсы 
 отправьте full_nudes, для нюдсов - nudes, для эстетичных - aesthetics, для мусора - delete. Ниже можете 
@@ -162,34 +133,42 @@ def start_filter(update: Update, context: CallbackContext) -> int:
                 for photo_url in config.FilterersPhotos.aesthetics
             ]
         )
-        add_filterer(user_id)
+        users.add_sorter(user)
 
-    update.message.reply_text("Удачной сортировки!", reply_markup=filter_markup)
-    send_photo_filter(update, context)
+    update.message.reply_text("Удачной сортировки!", reply_markup=sorting_markup)
+    send_photo_sorting(update, context)
 
-    return FILTERING
+    return SORTING
 
 
 def filtering_filter(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
+    user = update.message.from_user
     user_reply = update.message.text
-    photo_url = get_current_url_filterer(user_id)
+    photo_url = users.get_current_url_sorter(user)
     if user_reply != "delete":
-        add_photo_url(url=photo_url, categories=[user_reply], file=config.Files.photos)
-        logger.info(
-            f"Added {photo_url.split('/')[-1].split('?')[0]} to {config.Files.photos}"
-        )
-    remove_photo_url(photo_url, file=config.Files.unsorted_photos)
-    logger.info(
-        f"Removed {photo_url.split('/')[-1].split('?')[0]} from {config.Files.unsorted_photos}"
-    )
-    send_photo_filter(update, context)
+        photos.add_to_allowed_photo_url(url=photo_url, categories=[user_reply])
+        logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
+                    f"{C.green}added{C.white} photo to the AllowedPhotosURLs")
+    photos.delete_from_unsorted_photo_url(url=photo_url)
+    logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
+                f"{C.red}removed{C.white} photo from the UnsortedPhotosURLs")
+    users.add_one_to_category_sorter(user, category=user_reply)
+    send_photo_sorting(update, context)
 
 
-def exit_filter(update: Update, context: CallbackContext) -> int:
-    logger.info(f"{update.message.from_user.name} finished filtering")
+def exit_sorting(update: Update, context: CallbackContext) -> int:
+    logger.info(f"{C.blue}{update.message.from_user.first_name} (id:{update.message.from_user.id}){C.white}: "
+                f"finished filtering")
     update.message.reply_text("Спасибо за работу", reply_markup=default_markup)
     return ConversationHandler.END
+
+
+def sorter_statistics_sorting(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    counter = users.get_statics_of_sorter(user)
+    formatted_output = "\n".join(f"{category}: {number}" for category, number in counter.items())
+    logger.info(f"Statistics of sorter {C.blue}{user.first_name} (id: {user.id}){C.white}: {counter}")
+    update.message.reply_text(f"Ваша статистика:\n{formatted_output}")
 
 
 def main() -> None:
@@ -199,24 +178,25 @@ def main() -> None:
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
+
     dispatcher.add_handler(CommandHandler("aesthetics", send_aesthetics_command))
     dispatcher.add_handler(CommandHandler("nudes", send_nudes_command))
-    dispatcher.add_handler(
-        CommandHandler("aesthetic_photo", send_aesthetic_photo_command)
-    )
+    dispatcher.add_handler(CommandHandler("aesthetic_photo", send_aesthetic_photo_command))
     dispatcher.add_handler(CommandHandler("nude_photo", send_nudes_photo_command))
+
     dispatcher.add_handler(CommandHandler("number", get_photos_number_command))
+    dispatcher.add_handler(CommandHandler("statistics", sorter_statistics_sorting))
 
     filter_handler = ConversationHandler(
-        entry_points=[CommandHandler("start_filter", start_filter)],
+        entry_points=[CommandHandler("start_sorting", start_sorting)],
         states={
-            FILTERING: [
+            SORTING: [
                 MessageHandler(
-                    Filters.regex(f"^({'|'.join(filter_replies)})$"), filtering_filter
+                    Filters.regex(f"^({'|'.join(sorting_replies)})$"), filtering_filter
                 )
             ]
         },
-        fallbacks=[CommandHandler("exit", exit_filter)],
+        fallbacks=[CommandHandler("exit", exit_sorting)],
     )
 
     dispatcher.add_handler(filter_handler)

@@ -27,6 +27,13 @@ class ColoredSymbols:
     unknown = f"{Colors.purple}{Symbols.unknown}{Colors.white}"
 
 
+class Collections:
+    all = ["AllowedPhotosURLs", "UnsortedPhotosURLs", "BlockedPhotosURLs"]
+    allowed = all[0]
+    unsorted = all[1]
+    blocked = all[2]
+
+
 class FilterersPhotos:
     full_nudes = [
         "https://sun9-7.userapi.com/s/v1/if2/vLEDtwCTMwNEWlvbwBDTn9Ead6vS67T78Aex9_ogp1gw"
@@ -79,13 +86,6 @@ class FilterersPhotos:
     ]
 
 
-class Files:
-    unsorted_photos = "database/unsorted_photos.json"
-    photos = "database/photos.json"
-    blocked_photos = "database/blocked_photos.json"
-    filterers = "database/filterers.json"
-
-
 console_width = 118
 
 paths = list(
@@ -119,7 +119,10 @@ paths = list(
     }
 )
 
-categories = ["nudes", "aesthetics"]
+categories = ["full_nudes", "nudes", "aesthetics", "delete"]
 
 TELEGRAM_BOT_HTTP_API_TOKEN = os.getenv("TELEGRAM_BOT_HTTP_API_TOKEN")
+
+MONGO_DB_USER = os.getenv("MONGO_DB_USER")
 MONGO_DB_PASSWORD = os.getenv("MONGO_DB_PASSWORD")
+MONGO_DB_CLUSTER = os.getenv("MONGO_DB_CLUSTER")
