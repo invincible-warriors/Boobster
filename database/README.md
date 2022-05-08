@@ -49,3 +49,20 @@
             "current_url": PhotoURL
         }
         ```
+    * ### Clients 
+        Contains information about clients
+        ```json
+        {
+            "_id": ObjectId,
+            "user": {
+                "id": telegram.user.id,
+                "first_name": telegram.user.first_name,
+                "username": telegram.user.username
+            },
+            "photos_counter": {
+                "aesthetics": number,
+                "nudes": number,
+                "full_nudes": number,
+            }
+        }
+        ```

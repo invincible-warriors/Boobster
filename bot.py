@@ -1,6 +1,5 @@
 import logging
 import os
-
 import telegram
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
@@ -11,8 +10,19 @@ from telegram.ext import (
     Filters,
     CallbackContext,
 )
-
-from database.database import *
+from database.database import (
+    Photos,
+    Users,
+    URLAlreadyExistsError,
+    URLBlocked,
+    URLNotFoundError,
+    CategoryNotFoundError,
+    CollectionNotFoundError,
+    IsNotSorterError,
+    SorterAlreadyExistsError,
+    IsNotClientError,
+    ClientAlreadyExistsError
+)
 import config
 from config import Colors as C
 
@@ -44,35 +54,51 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def send_aesthetics_command(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    if not users.is_client(user.id):
+        users.add_client(user)
+    users.add_number_to_category_client(user, category="aesthetics", number=5)
     photo_urls = photos.get_five_photo_by_category(category="aesthetics")
     update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
     logger.info(f"{C.green}SUCCESS{C.white}: five aesthetics photos were sent to {C.blue}"
-                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
+                f"{user.first_name}(id:{user.id}){C.white}")
 
 
 def send_aesthetic_photo_command(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    if not users.is_client(user.id):
+        users.add_client(user)
+    users.add_number_to_category_client(user, category="aesthetics", number=1)
     photo_url = photos.get_one_photo_url_by_category(category="aesthetics")
     update.message.reply_photo(photo_url)
     logger.info(f"{C.green}SUCCESS{C.white}: one aesthetic photo was sent to {C.blue}"
-                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
+                f"{user.first_name}(id:{user.id}){C.white}")
 
 
 def send_nudes_command(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    if not users.is_client(user.id):
+        users.add_client(user)
+    users.add_number_to_category_client(user, category="nudes", number=5)
     photo_urls = photos.get_five_photo_by_category(category="nudes")
     update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
     logger.info(f"{C.green}SUCCESS{C.white}: five nudes photos were sent to {C.blue}"
-                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
+                f"{user.first_name}(id:{user.id}){C.white}")
 
 
 def send_nudes_photo_command(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    if not users.is_client(user.id):
+        users.add_client(user)
+    users.add_number_to_category_client(user, category="nudes", number=1)
     photo_url = photos.get_one_photo_url_by_category(category="nudes")
     update.message.reply_photo(photo_url)
     logger.info(f"{C.green}SUCCESS{C.white}: one nude photo was sent to {C.blue}"
-                f"{update.message.from_user.first_name}(id:{update.message.from_user.id}){C.white}")
+                f"{user.first_name}(id:{user.id}){C.white}")
 
 
-def get_photos_number_command(update: Update, context: CallbackContext) -> None:
-    counters = photos.get_statistics_of_photos()
+def get_photo_stats_command(update: Update, context: CallbackContext) -> None:
+    counters = photos.get_stats_of_photos()
     allowed_photos_formatted = "\n".join(
         f"{category}: {number}" for category, number in counters[config.Collections.allowed].items()
     )
@@ -89,7 +115,18 @@ def get_photos_number_command(update: Update, context: CallbackContext) -> None:
 def send_photo_sorting(update: Update, context: CallbackContext):
     photo_url = photos.get_photo_for_sorting()
     user = update.message.from_user
-    update.message.reply_photo(photo=photo_url)
+    while True:
+        try:
+            update.message.reply_photo(photo=photo_url)
+            break
+        except telegram.error.BadRequest:
+            logger.error(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
+                         f"{C.red}BadRequest{C.white}. Deleted and blocked photo")
+            photos.delete_from_unsorted_photo_url(photo_url)
+            try:
+                photos.add_to_blocked_photo_url(photo_url)
+            except URLAlreadyExistsError:
+                pass
     users.set_current_url_sorter(user, photo_url)
     logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: Set photo_url for sorter ")
     return SORTING
@@ -163,12 +200,26 @@ def exit_sorting(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-def sorter_statistics_sorting(update: Update, context: CallbackContext) -> None:
+def get_sorter_stats_command(update: Update, context: CallbackContext) -> None:
     user = update.message.from_user
-    counter = users.get_statics_of_sorter(user)
+    if not users.is_sorter(user.id):
+        update.message.reply_text(f"Вы не идентифицированы как сортировщик.")
+        return
+    counter = users.get_stats_of_sorter(user)
     formatted_output = "\n".join(f"{category}: {number}" for category, number in counter.items())
     logger.info(f"Statistics of sorter {C.blue}{user.first_name} (id: {user.id}){C.white}: {counter}")
-    update.message.reply_text(f"Ваша статистика:\n{formatted_output}")
+    update.message.reply_text(f"Ваша статистика (как сортировщика):\n{formatted_output}")
+
+
+def get_client_stats_command(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    if not users.is_client(user.id):
+        update.message.reply_text(f"Вы не идентифицированы как клиент.")
+        return
+    counter = users.get_stats_of_client(user)
+    formatted_output = "\n".join(f"{category}: {number}" for category, number in counter.items())
+    logger.info(f"Statistics of client {C.blue}{user.first_name} (id: {user.id}){C.white}: {counter}")
+    update.message.reply_text(f"Ваша статистика (как клиента):\n{formatted_output}")
 
 
 def main() -> None:
@@ -184,8 +235,9 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("aesthetic_photo", send_aesthetic_photo_command))
     dispatcher.add_handler(CommandHandler("nude_photo", send_nudes_photo_command))
 
-    dispatcher.add_handler(CommandHandler("number", get_photos_number_command))
-    dispatcher.add_handler(CommandHandler("statistics", sorter_statistics_sorting))
+    dispatcher.add_handler(CommandHandler("photo_stats", get_photo_stats_command))
+    dispatcher.add_handler(CommandHandler("sorter_stats", get_sorter_stats_command))
+    dispatcher.add_handler(CommandHandler("client_stats", get_client_stats_command))
 
     filter_handler = ConversationHandler(
         entry_points=[CommandHandler("start_sorting", start_sorting)],

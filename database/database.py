@@ -33,6 +33,14 @@ class SorterAlreadyExistsError(Exception):
     pass
 
 
+class IsNotClientError(Exception):
+    pass
+
+
+class ClientAlreadyExistsError(Exception):
+    pass
+
+
 class Database:
     """
     Main class of MongoDB
@@ -127,7 +135,6 @@ class Photos(Database):
         :param url: photo URL
         :return: None
         :raises URLAlreadyExistsError: if url already exists
-        :raises URLBlocked: if url in blacklist
         """
         if list(self.blocked_photos.find({"url": url})):
             raise URLAlreadyExistsError
@@ -198,7 +205,7 @@ class Photos(Database):
         urls = allowed_photos_data[:5]
         return urls
 
-    def get_statistics_of_photos(self) -> dict:
+    def get_stats_of_photos(self) -> dict:
         """
         Statistic of number of photos in selected collections.
 
@@ -237,6 +244,7 @@ class Users(Database):
     ):
         super().__init__(user, password, cluster)
         self.sorters = self.mongo_client.get_database("Users").get_collection("Sorters")
+        self.clients = self.mongo_client.get_database("Users").get_collection("Clients")
 
     def is_sorter(self, user_id: int) -> bool:
         return bool(self.sorters.find_one({"user.id": user_id}))
@@ -285,9 +293,51 @@ class Users(Database):
             {"$set": {f"photos_counter.{category}": current_value + 1}}
         )
 
-    def get_statics_of_sorter(self, user: telegram.User):
+    def get_stats_of_sorter(self, user: telegram.User):
         if not self.is_sorter(user.id):
             raise IsNotSorterError
         sorter = self.sorters.find_one({"user.id": user.id})
         counter = sorter["photos_counter"]
+        return counter
+
+    def is_client(self, user_id: int) -> bool:
+        return bool(self.clients.find_one({"user.id": user_id}))
+
+    def add_client(self, user: telegram.User) -> None:
+        if self.is_client(user.id):
+            raise ClientAlreadyExistsError
+        user = {
+            "id": user.id,
+            "first_name": user.first_name,
+            "username": user.username
+        }
+        photos_counter = {
+            "aesthetics": 0,
+            "nudes": 0,
+            "full_nudes": 0
+        }
+        self.clients.insert_one({
+            "user": user,
+            "photos_counter": photos_counter,
+        })
+
+    def remove_client(self, user: telegram.User) -> None:
+        if not self.is_client(user.id):
+            raise IsNotClientError
+        self.clients.delete_one({"user.id": user.id})
+
+    def add_number_to_category_client(self, user: telegram.User, category: str, number: int) -> None:
+        if not self.is_client(user.id):
+            raise IsNotClientError
+        current_value = self.clients.find_one({"user.id": user.id})["photos_counter"][category]
+        self.clients.update_one(
+            {"user.id": user.id},
+            {"$set": {f"photos_counter.{category}": current_value + number}}
+        )
+
+    def get_stats_of_client(self, user: telegram.User) -> dict:
+        if not self.is_client(user.id):
+            raise IsNotClientError
+        client = self.clients.find_one({"user.id": user.id})
+        counter = client["photos_counter"]
         return counter
