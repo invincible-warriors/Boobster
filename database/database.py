@@ -1,7 +1,7 @@
+import datetime
 import random
 import pymongo
 import telegram
-
 import config
 
 
@@ -76,12 +76,13 @@ class Photos(Database):
         self.blocked_photos = self.mongo_client.get_database("Photos").get_collection("BlockedPhotosURLs")
         self.unsorted_photos = self.mongo_client.get_database("Photos").get_collection("UnsortedPhotosURLs")
 
-    def add_to_allowed_photo_url(self, url: str, categories: list[str]) -> None:
+    def add_to_allowed_photo_url(self, url: str, categories: list[str], user: telegram.User | str) -> None:
         """
         Adds photo URL to the Photos.AllowedPhotosURLs database
 
         :param url: photo URL
         :param categories: photo categories
+        :param user: telegram User who added the photo
         :return: None
         :raises URLAlreadyExistsError: if url already exists
         :raises URLBlocked: if url in blacklist
@@ -90,9 +91,22 @@ class Photos(Database):
             raise URLAlreadyExistsError
         if list(self.blocked_photos.find({"url": url})):
             raise URLBlocked
+
+        if isinstance(user, telegram.User):
+            added_by = {
+                    "id": user.id,
+                    "first_name": user.first_name,
+                    "username": user.username
+                }
+        else:
+            added_by = user
         self.allowed_photos.insert_one({
             "url": url,
-            "categories": categories
+            "categories": categories,
+            "added_info": {
+                "at": datetime.datetime.now(),
+                "by": added_by
+            }
         })
 
     def delete_from_allowed_photo_url(self, url: str) -> None:
@@ -128,17 +142,33 @@ class Photos(Database):
         """
         self.unsorted_photos.delete_one({"url": url})
 
-    def add_to_blocked_photo_url(self, url: str) -> None:
+    def add_to_blocked_photo_url(self, url: str, user: telegram.User | str) -> None:
         """
         Adds photo URL to the Photos.BlockedPhotosURLs database
 
         :param url: photo URL
+        :param user: telegram User who added the photo
         :return: None
         :raises URLAlreadyExistsError: if url already exists
         """
         if list(self.blocked_photos.find({"url": url})):
             raise URLAlreadyExistsError
-        self.blocked_photos.insert_one({"url": url})
+
+        if isinstance(user, telegram.User):
+            added_by = {
+                    "id": user.id,
+                    "first_name": user.first_name,
+                    "username": user.username
+                }
+        else:
+            added_by = user
+        self.blocked_photos.insert_one({
+            "url": url,
+            "added_info": {
+                "at": datetime.datetime.now(),
+                "by": added_by
+            }
+        })
 
     def get_photo_for_sorting(self) -> str:
         """
@@ -266,6 +296,7 @@ class Users(Database):
         self.sorters.insert_one({
             "user": user,
             "photos_counter": photos_counter,
+            "added_at": datetime.datetime.now(),
             "current_url": ""
         })
 
@@ -298,7 +329,14 @@ class Users(Database):
             raise IsNotSorterError
         sorter = self.sorters.find_one({"user.id": user.id})
         counter = sorter["photos_counter"]
+        counter["all"] = sum(counter.values())
         return counter
+
+    def get_stats_of_all_sorters(self) -> list:
+        data = list(self.sorters.find({}, {"_id": 0, "user.username": 1, "photos_counter": 1, "added_at": 1}))
+        for i in range(len(data)):
+            data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
+        return data
 
     def is_client(self, user_id: int) -> bool:
         return bool(self.clients.find_one({"user.id": user_id}))
@@ -319,6 +357,7 @@ class Users(Database):
         self.clients.insert_one({
             "user": user,
             "photos_counter": photos_counter,
+            "added_at": datetime.datetime.now()
         })
 
     def remove_client(self, user: telegram.User) -> None:
@@ -328,7 +367,7 @@ class Users(Database):
 
     def add_number_to_category_client(self, user: telegram.User, category: str, number: int) -> None:
         if not self.is_client(user.id):
-            raise IsNotClientError
+            self.add_client(user)
         current_value = self.clients.find_one({"user.id": user.id})["photos_counter"][category]
         self.clients.update_one(
             {"user.id": user.id},
@@ -340,4 +379,11 @@ class Users(Database):
             raise IsNotClientError
         client = self.clients.find_one({"user.id": user.id})
         counter = client["photos_counter"]
+        counter["all"] = sum(counter.values())
         return counter
+
+    def get_stats_of_all_clients(self) -> list:
+        data = list(self.clients.find({}, {"_id": 0, "user.username": 1, "photos_counter": 1, "added_at": 1}))
+        for i in range(len(data)):
+            data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
+        return data

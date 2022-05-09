@@ -153,3 +153,4 @@ connect_to_ssh.sh
 
 # Docker
 Dockerfile
+deploy_to_ecr.sh
