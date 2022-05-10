@@ -9,15 +9,31 @@
             "url": PhotoURL,
             "categories": [
                 list of categories
-            ]
-        } 
+            ],
+            "added_info": {
+                "at": datetime.datetime.now(),
+                "by": {
+                    "id": telegram.user.id,
+                    "first_name": telegram.user.first_name,
+                    "username": telegram.user.username
+                }
+            }
+        }
         ```
     * ### BlockedPhotosURLs
         Contains information about black listed photos
         ```json
         {
             "_id": ObjectId,
-            "url": PhotoURL
+            "url": PhotoURL,
+            "added_info": {
+                "at": datetime.datetime.now(),
+                "by": {
+                    "id": telegram.user.id,
+                    "first_name": telegram.user.first_name,
+                    "username": telegram.user.username
+                }
+            }
         } 
         ```
     * ### UnsortedPhotosURLs
@@ -46,7 +62,8 @@
                 "nudes": number,
                 "full_nudes": number,
             },
-            "current_url": PhotoURL
+            "current_url": PhotoURL,
+            "added_at": datetime.datetime.now()
         }
         ```
     * ### Clients 
@@ -63,6 +80,8 @@
                 "aesthetics": number,
                 "nudes": number,
                 "full_nudes": number,
-            }
+            },
+            "added_at": datetime.datetime.now(),
+            "last_seen": datetime.datetime.now()
         }
         ```
