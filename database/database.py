@@ -321,7 +321,10 @@ class Users(Database):
         current_value = self.sorters.find_one({"user.id": user.id})["photos_counter"][category]
         self.sorters.update_one(
             {"user.id": user.id},
-            {"$set": {f"photos_counter.{category}": current_value + 1}}
+            {"$set": {
+                f"photos_counter.{category}": current_value + 1,
+                "last_seen": datetime.datetime.now()
+            }}
         )
 
     def get_stats_of_sorter(self, user: telegram.User):
@@ -332,10 +335,12 @@ class Users(Database):
         counter["all"] = sum(counter.values())
         return counter
 
-    def get_stats_of_all_sorters(self) -> list:
-        data = list(self.sorters.find({}, {"_id": 0, "user.username": 1, "photos_counter": 1, "added_at": 1}))
+    def get_stats_of_all_sorters(self, sorting: str | None = None) -> list:
+        data = list(self.sorters.find({}, {"_id": 0}))
         for i in range(len(data)):
             data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
+        if sorting:
+            data.sort(key=lambda obj: obj["photos_counter"]["all"], reverse=(sorting == "ASC"))
         return data
 
     def is_client(self, user_id: int) -> bool:
@@ -371,7 +376,10 @@ class Users(Database):
         current_value = self.clients.find_one({"user.id": user.id})["photos_counter"][category]
         self.clients.update_one(
             {"user.id": user.id},
-            {"$set": {f"photos_counter.{category}": current_value + number}}
+            {"$set": {
+                f"photos_counter.{category}": current_value + number,
+                "last_seen": datetime.datetime.now()
+            }}
         )
 
     def get_stats_of_client(self, user: telegram.User) -> dict:
@@ -383,7 +391,7 @@ class Users(Database):
         return counter
 
     def get_stats_of_all_clients(self) -> list:
-        data = list(self.clients.find({}, {"_id": 0, "user.username": 1, "photos_counter": 1, "added_at": 1}))
+        data = list(self.clients.find({}, {"_id": 0}))
         for i in range(len(data)):
             data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
         return data

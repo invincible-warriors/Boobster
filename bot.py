@@ -1,30 +1,29 @@
 import logging
-import os
 import telegram
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    LabeledPrice,
+    ShippingOption
+)
 from telegram.ext import (
     ApplicationBuilder,
     ConversationHandler,
     CommandHandler,
     MessageHandler,
+    ShippingQueryHandler,
+    PreCheckoutQueryHandler,
     CallbackContext,
     filters
 )
+
+import config
+from config import Colors as C
 from database.database import (
     Photos,
     Users,
-    URLAlreadyExistsError,
-    URLBlocked,
-    URLNotFoundError,
-    CategoryNotFoundError,
-    CollectionNotFoundError,
-    IsNotSorterError,
-    SorterAlreadyExistsError,
-    IsNotClientError,
-    ClientAlreadyExistsError
+    URLAlreadyExistsError
 )
-import config
-from config import Colors as C
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,7 +65,7 @@ async def send_aesthetics_command(update: Update, context: CallbackContext.DEFAU
     photo_urls = photos.get_five_photo_by_category(category="aesthetics")
     await update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
     logger.info(f"{C.green}SUCCESS{C.white}: five aesthetics photos were sent to {C.blue}"
-                f"{user.first_name}(id:{user.id}){C.white}")
+                f"{user.first_name} (id:{user.id}){C.white}")
 
 
 async def send_aesthetic_photo_command(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
@@ -75,7 +74,7 @@ async def send_aesthetic_photo_command(update: Update, context: CallbackContext.
     photo_url = photos.get_one_photo_url_by_category(category="aesthetics")
     await update.message.reply_photo(photo_url)
     logger.info(f"{C.green}SUCCESS{C.white}: one aesthetic photo was sent to {C.blue}"
-                f"{user.first_name}(id:{user.id}){C.white}")
+                f"{user.first_name} (id:{user.id}){C.white}")
 
 
 async def send_nudes_command(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
@@ -84,7 +83,7 @@ async def send_nudes_command(update: Update, context: CallbackContext.DEFAULT_TY
     photo_urls = photos.get_five_photo_by_category(category="nudes")
     await update.message.reply_media_group(media=[telegram.InputMediaPhoto(photo_url) for photo_url in photo_urls])
     logger.info(f"{C.green}SUCCESS{C.white}: five nudes photos were sent to {C.blue}"
-                f"{user.first_name}(id:{user.id}){C.white}")
+                f"{user.first_name} (id:{user.id}){C.white}")
 
 
 async def send_nudes_photo_command(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
@@ -93,7 +92,7 @@ async def send_nudes_photo_command(update: Update, context: CallbackContext.DEFA
     photo_url = photos.get_one_photo_url_by_category(category="nudes")
     await update.message.reply_photo(photo_url)
     logger.info(f"{C.green}SUCCESS{C.white}: one nude photo was sent to {C.blue}"
-                f"{user.first_name}(id:{user.id}){C.white}")
+                f"{user.first_name} (id:{user.id}){C.white}")
 
 
 async def get_photo_stats_command(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
@@ -202,6 +201,28 @@ async def exit_sorting(update: Update, context: CallbackContext.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 
+def formatted_statistics(stats_data):
+    users_data = []
+    hyphen_counter = 64
+    for user_data in stats_data:
+        user_tag = f"@{user_data['user']['username']}"
+        user_name = user_data["user"]["first_name"]
+        added_at = user_data['added_at'].strftime("%A %d.%m.%Y, %H:%M:%S")
+        last_seen = user_data.get("last_seen", user_data["added_at"]).strftime("%A %d.%m.%Y, %H:%M:%S")
+        formatted_categories = "\n".join(
+            f"<b>{category}</b>: {number}" for category, number in user_data['photos_counter'].items()
+        )
+        users_data.append(
+            f"{user_tag} - <b>{user_name}</b>\n"
+            f"<b>Added at</b>: {added_at}\n"
+            f"<b>Last seen</b>: {last_seen}\n"
+            f"\n"
+            f"{formatted_categories}"
+        )
+    formatted_output = f"\n{'-' * hyphen_counter}\n".join(users_data)
+    return formatted_output
+
+
 async def get_sorter_stats_command(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     if not users.is_sorter(user.id):
@@ -217,16 +238,10 @@ async def get_sorters_stats_command(update: Update, context: CallbackContext.DEF
     user = update.message.from_user
     if user.id != 516229295:
         await update.message.reply_text("У вас нет доступа к этой команде")
-    clients_stats = users.get_stats_of_all_sorters()
-
-    clients_data = []
-    for data in clients_stats:
-        usertag = f"@{data['user']['username']}"
-        added_at = data['added_at'].strftime("%A %d.%m.%Y, %H:%M:%S")
-        formatted_categories = "\n".join(f"{category}: {number}" for category, number in data['photos_counter'].items())
-        clients_data.append(f"{usertag} - {added_at}\n{formatted_categories}")
-    formatted_output = "\n\n".join(clients_data)
-    await update.message.reply_text(f"Статистика всех сортировщиков:\n{formatted_output}")
+        return
+    clients_stats = users.get_stats_of_all_sorters(sorting="ASC")
+    formatted_output = formatted_statistics(clients_stats)
+    await update.message.reply_html(f"Статистика всех сортировщиков:\n{formatted_output}")
     logger.info(f"Statistics of sorters were asked by {C.blue}{user.first_name} (id:{user.id}){C.white}")
 
 
@@ -245,17 +260,62 @@ async def get_clients_stats_command(update: Update, context: CallbackContext.DEF
     user = update.message.from_user
     if user.id != 516229295:
         await update.message.reply_text("У вас нет доступа к этой команде")
+        return
     clients_stats = users.get_stats_of_all_clients()
-
-    clients_data = []
-    for data in clients_stats:
-        usertag = f"@{data['user']['username']}"
-        added_at = data['added_at'].strftime("%A %d.%m.%Y, %H:%M:%S")
-        formatted_categories = "\n".join(f"{category}: {number}" for category, number in data['photos_counter'].items())
-        clients_data.append(f"{usertag} - {added_at}\n{formatted_categories}")
-    formatted_output = "\n\n".join(clients_data)
-    await update.message.reply_text(f"Статистика всех клиентов:\n{formatted_output}")
+    formatted_output = formatted_statistics(clients_stats)
+    await update.message.reply_html(f"Статистика всех клиентов:\n{formatted_output}")
     logger.info(f"Statistics of clients were asked by {C.blue}{user.first_name} (id:{user.id}){C.white}")
+
+
+# async def start_with_shipping_callback(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+#     chat_id = update.message.chat_id
+#     title = "Payment Example"
+#     description = "Payment Example description"
+#     payload = "Custom-Payload"
+#     currency = "RUB"
+#     price = 100
+#     prices = [LabeledPrice("Test", price * 100)]
+#     await update.message.reply_invoice(
+#         title, description, payload, config.TELEGRAM_PAYMENT_PROVIDER_TOKEN, currency, prices,
+#         need_name=True, need_email=True, need_shipping_address=True, is_flexible=True
+#     )
+#
+#
+# async def start_without_shipping_callback(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+#     chat_id = update.message.chat_id
+#     title = "Payment Example"
+#     description = "Payment Example description"
+#     payload = "Custom-Payload"
+#     currency = "RUB"
+#     price = 100
+#     prices = [LabeledPrice("Test", price * 100)]
+#     await update.message.reply_invoice(
+#         title, description, payload, config.TELEGRAM_PAYMENT_PROVIDER_TOKEN, currency, prices,
+#         suggested_tip_amounts=[100 * 100, 500 * 100, 1000 * 100], max_tip_amount=1000 * 100
+#     )
+#
+#
+# async def shipping_callback(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+#     query = update.shipping_query
+#     if query.invoice_payload != "Custom-Payload":
+#         await query.answer(ok=False, error_message="Something went wrong...")
+#         return
+#     options = [ShippingOption("1", "Shipping Option A", [LabeledPrice("A", 100 * 100)])]
+#     price_list = [LabeledPrice("B1", 150), LabeledPrice("B2", 200)]
+#     options.append(ShippingOption("2", "Shipping Option B", price_list))
+#     await query.answer(ok=True, shipping_options=options)
+#
+#
+# async def precheckout_callback(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+#     query = update.pre_checkout_query
+#     if query.invoice_payload != "Custom-Payload":
+#         await query.answer(ok=False, error_message="Something went wrong...")
+#     else:
+#         await query.answer(ok=True)
+#
+#
+# async def successful_payment_callback(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+#     await update.message.reply_text("Thank you for your payment!")
 
 
 def main() -> None:
@@ -287,6 +347,14 @@ def main() -> None:
     )
 
     application.add_handler(filter_handler)
+
+    # application.add_handler(CommandHandler("shipping", start_with_shipping_callback))
+    # application.add_handler(CommandHandler("noshipping", start_without_shipping_callback))
+    # application.add_handler(ShippingQueryHandler(shipping_callback))
+    # application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    # application.add_handler(
+    #     MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback)
+    # )
 
     application.run_polling()
 

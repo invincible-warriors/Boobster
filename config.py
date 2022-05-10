@@ -122,6 +122,7 @@ paths = list(
 categories = ["full_nudes", "nudes", "aesthetics", "delete"]
 
 TELEGRAM_BOT_HTTP_API_TOKEN = os.getenv("TELEGRAM_BOT_HTTP_API_TOKEN")
+TELEGRAM_PAYMENT_PROVIDER_TOKEN = os.getenv("TELEGRAM_PAYMENT_PROVIDER_TOKEN")
 
 MONGO_DB_USER = os.getenv("MONGO_DB_USER")
 MONGO_DB_PASSWORD = os.getenv("MONGO_DB_PASSWORD")
