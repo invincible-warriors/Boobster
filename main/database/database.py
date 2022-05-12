@@ -1,8 +1,10 @@
 import datetime
 import random
+
 import pymongo
 import telegram
-import config
+
+from main.config import config
 
 
 class URLAlreadyExistsError(Exception):
@@ -61,6 +63,229 @@ class Database:
                 setattr(self, key, value)
 
 
+class Users(Database):
+    def __init__(
+            self,
+            user=config.MONGO_DB_USER,
+            password=config.MONGO_DB_PASSWORD,
+            cluster=config.MONGO_DB_CLUSTER,
+    ):
+        super().__init__(user, password, cluster)
+        self.sorters = self.mongo_client.get_database("Users").get_collection("Sorters")
+        self.clients = self.mongo_client.get_database("Users").get_collection("Clients")
+
+    def is_sorter(self, user_id: int) -> bool:
+        """
+        Checks if user is sorter
+
+        :param user_id: telegram.User.id
+        :return: True or False
+        """
+        return bool(self.sorters.find_one({"user.id": user_id}))
+
+    def add_sorter(self, user: telegram.User) -> None:
+        """
+        Adds user as sorter
+
+        :param user: telegram.User
+        :return: None
+        """
+        if self.is_sorter(user.id):
+            raise SorterAlreadyExistsError
+        user = {
+            "id": user.id,
+            "first_name": user.first_name,
+            "username": user.username
+        }
+        photos_counter = {
+            "delete": 0,
+            "aesthetics": 0,
+            "nudes": 0,
+            "full_nudes": 0
+        }
+        self.sorters.insert_one({
+            "user": user,
+            "photos_counter": photos_counter,
+            "added_at": datetime.datetime.now(),
+            "current_url": ""
+        })
+
+    def remove_sorter(self, user: telegram.User) -> None:
+        """
+        Removes user as sorter
+
+        :param user: telegram.User
+        :return: None
+        """
+        if not self.is_sorter(user.id):
+            raise IsNotSorterError
+        self.sorters.delete_one({"user.id": user.id})
+
+    def set_current_url_sorter(self, user: telegram.User, photo_url: str) -> None:
+        """
+        Sets url as current sorter's url
+
+        :param user: telegram.User
+        :param photo_url: photo URL
+        :return: None
+        """
+        if not self.is_sorter(user.id):
+            raise IsNotSorterError
+        self.sorters.update_one({"user.id": user.id}, {"$set": {"current_url": photo_url}})
+
+    def get_current_url_sorter(self, user: telegram.User) -> str:
+        """
+        Returns currents sorter's url
+
+        :param user: telegram.User
+        :return: sorter's URL
+        """
+        if not self.is_sorter(user.id):
+            raise IsNotSorterError
+        return self.sorters.find_one({"user.id": user.id})["current_url"]
+
+    def get_current_urls_sorters(self) -> list[str]:
+        """
+        Returns all sorters' urls
+
+        :return: all sorters' urls
+        """
+        photos_urls = [obj["current_url"] for obj in self.sorters.find({}, {"_id": 0, "current_url": 1})]
+        return photos_urls
+
+    def add_one_to_category_sorter(self, user: telegram.User, category: str) -> None:
+        """
+        Adds one point to sorter's category
+
+        :param user: telegram.User
+        :param category: name of category
+        :return: None
+        """
+        if not self.is_sorter(user.id):
+            raise IsNotSorterError
+        current_value = self.sorters.find_one({"user.id": user.id})["photos_counter"][category]
+        self.sorters.update_one(
+            {"user.id": user.id},
+            {"$set": {
+                f"photos_counter.{category}": current_value + 1,
+                "last_seen": datetime.datetime.now()
+            }}
+        )
+
+    def get_stats_of_sorter(self, user: telegram.User) -> dict:
+        """
+        Returns statistics of sorter
+
+        :param user: telegram.User
+        :return: statistics dict of sorter
+        """
+        if not self.is_sorter(user.id):
+            raise IsNotSorterError
+        sorter = self.sorters.find_one({"user.id": user.id})
+        counter = sorter["photos_counter"]
+        counter["all"] = sum(counter.values())
+        return counter
+
+    def get_stats_of_all_sorters(self, sorting: str | None = None) -> list:
+        """
+        Returns statistics of all users
+
+        :param sorting: type of sorting (ASC|DESC|None)
+        :return: list of statistics dicts of sorters
+        """
+        data = list(self.sorters.find({}, {"_id": 0}))
+        for i in range(len(data)):
+            data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
+        if sorting:
+            data.sort(key=lambda obj: obj["photos_counter"]["all"], reverse=(sorting == "ASC"))
+        return data
+
+    def is_client(self, user_id: int) -> bool:
+        """
+        Checks if user is clients
+
+        :param user_id: telegram.User.id
+        :return: True of False
+        """
+        return bool(self.clients.find_one({"user.id": user_id}))
+
+    def add_client(self, user: telegram.User) -> None:
+        """
+        Adds user as client
+
+        :param user: telegram.User
+        :return: None
+        """
+        if self.is_client(user.id):
+            raise ClientAlreadyExistsError
+        user = {
+            "id": user.id,
+            "first_name": user.first_name,
+            "username": user.username
+        }
+        photos_counter = {
+            "aesthetics": 0,
+            "nudes": 0,
+            "full_nudes": 0
+        }
+        self.clients.insert_one({
+            "user": user,
+            "photos_counter": photos_counter,
+            "added_at": datetime.datetime.now()
+        })
+
+    def remove_client(self, user: telegram.User) -> None:
+        """
+        Removes user as client
+
+        :param user: telegram.User
+        :return: None
+        """
+        if not self.is_client(user.id):
+            raise IsNotClientError
+        self.clients.delete_one({"user.id": user.id})
+
+    def add_number_to_category_client(self, user: telegram.User, category: str, number: int) -> None:
+        """
+        Adds one point to client's category
+
+        :param user: telegram.User
+        :param category: name of category
+        :param number: number of points
+        :return: None
+        """
+        if not self.is_client(user.id):
+            self.add_client(user)
+        current_value = self.clients.find_one({"user.id": user.id})["photos_counter"][category]
+        self.clients.update_one(
+            {"user.id": user.id},
+            {"$set": {
+                f"photos_counter.{category}": current_value + number,
+                "last_seen": datetime.datetime.now()
+            }}
+        )
+
+    def get_stats_of_client(self, user: telegram.User) -> dict:
+        """
+        Returns statistics of client
+
+        :param user: telegram.User
+        :return: statistics dict of client
+        """
+        if not self.is_client(user.id):
+            raise IsNotClientError
+        client = self.clients.find_one({"user.id": user.id})
+        counter = client["photos_counter"]
+        counter["all"] = sum(counter.values())
+        return counter
+
+    def get_stats_of_all_clients(self) -> list:
+        data = list(self.clients.find({}, {"_id": 0}))
+        for i in range(len(data)):
+            data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
+        return data
+
+
 class Photos(Database):
     """
     Subclass of MongoDB contains Photos Database
@@ -75,6 +300,7 @@ class Photos(Database):
         self.allowed_photos = self.mongo_client.get_database("Photos").get_collection("AllowedPhotosURLs")
         self.blocked_photos = self.mongo_client.get_database("Photos").get_collection("BlockedPhotosURLs")
         self.unsorted_photos = self.mongo_client.get_database("Photos").get_collection("UnsortedPhotosURLs")
+        self.sorter_urls_stack = []
 
     def add_to_allowed_photo_url(self, url: str, categories: list[str], user: telegram.User | str) -> None:
         """
@@ -170,14 +396,6 @@ class Photos(Database):
             }
         })
 
-    def get_photo_for_sorting(self) -> str:
-        """
-        Returns photo URL from the Photos.UnsortedPhotosURLs database
-
-        :return: photo URL
-        """
-        return self.unsorted_photos.find_one()["url"]
-
     def delete_from_blocked_photo_url(self, url: str) -> None:
         """
         Deletes photo URL from the Photos.BlockedPhotosURLs database
@@ -186,6 +404,20 @@ class Photos(Database):
         :return: None
         """
         self.blocked_photos.delete_one({"url": url})
+
+    def create_sorter_urls_stack(self):
+        self.sorter_urls_stack = [obj["url"] for obj in self.unsorted_photos.find(limit=100)]
+
+    def get_photo_for_sorting(self) -> str:
+        """
+        Returns photo URL from the Photos.UnsortedPhotosURLs database
+
+        :return: photo URL
+        """
+        if not self.sorter_urls_stack:
+            self.create_sorter_urls_stack()
+        url = self.sorter_urls_stack.pop()
+        return url
 
     def get_one_random_photo_url(self) -> str:
         """
@@ -265,133 +497,5 @@ class Photos(Database):
         return counters
 
 
-class Users(Database):
-    def __init__(
-        self,
-        user=config.MONGO_DB_USER,
-        password=config.MONGO_DB_PASSWORD,
-        cluster=config.MONGO_DB_CLUSTER,
-    ):
-        super().__init__(user, password, cluster)
-        self.sorters = self.mongo_client.get_database("Users").get_collection("Sorters")
-        self.clients = self.mongo_client.get_database("Users").get_collection("Clients")
-
-    def is_sorter(self, user_id: int) -> bool:
-        return bool(self.sorters.find_one({"user.id": user_id}))
-    
-    def add_sorter(self, user: telegram.User) -> None:
-        if self.is_sorter(user.id):
-            raise SorterAlreadyExistsError
-        user = {
-            "id": user.id,
-            "first_name": user.first_name,
-            "username": user.username
-        }
-        photos_counter = {
-            "delete": 0,
-            "aesthetics": 0,
-            "nudes": 0,
-            "full_nudes": 0
-        }
-        self.sorters.insert_one({
-            "user": user,
-            "photos_counter": photos_counter,
-            "added_at": datetime.datetime.now(),
-            "current_url": ""
-        })
-
-    def remover_sorter(self, user: telegram.User) -> None:
-        if not self.is_sorter(user.id):
-            raise IsNotSorterError
-        self.sorters.delete_one({"user.id": user.id})
-
-    def set_current_url_sorter(self, user: telegram.User, photo_url: str) -> None:
-        if not self.is_sorter(user.id):
-            raise IsNotSorterError
-        self.sorters.update_one({"user.id": user.id}, {"$set": {"current_url": photo_url}})
-
-    def get_current_url_sorter(self, user: telegram.User) -> str:
-        if not self.is_sorter(user.id):
-            raise IsNotSorterError
-        return self.sorters.find_one({"user.id": user.id})["current_url"]
-
-    def add_one_to_category_sorter(self, user: telegram.User, category: str) -> None:
-        if not self.is_sorter(user.id):
-            raise IsNotSorterError
-        current_value = self.sorters.find_one({"user.id": user.id})["photos_counter"][category]
-        self.sorters.update_one(
-            {"user.id": user.id},
-            {"$set": {
-                f"photos_counter.{category}": current_value + 1,
-                "last_seen": datetime.datetime.now()
-            }}
-        )
-
-    def get_stats_of_sorter(self, user: telegram.User):
-        if not self.is_sorter(user.id):
-            raise IsNotSorterError
-        sorter = self.sorters.find_one({"user.id": user.id})
-        counter = sorter["photos_counter"]
-        counter["all"] = sum(counter.values())
-        return counter
-
-    def get_stats_of_all_sorters(self, sorting: str | None = None) -> list:
-        data = list(self.sorters.find({}, {"_id": 0}))
-        for i in range(len(data)):
-            data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
-        if sorting:
-            data.sort(key=lambda obj: obj["photos_counter"]["all"], reverse=(sorting == "ASC"))
-        return data
-
-    def is_client(self, user_id: int) -> bool:
-        return bool(self.clients.find_one({"user.id": user_id}))
-
-    def add_client(self, user: telegram.User) -> None:
-        if self.is_client(user.id):
-            raise ClientAlreadyExistsError
-        user = {
-            "id": user.id,
-            "first_name": user.first_name,
-            "username": user.username
-        }
-        photos_counter = {
-            "aesthetics": 0,
-            "nudes": 0,
-            "full_nudes": 0
-        }
-        self.clients.insert_one({
-            "user": user,
-            "photos_counter": photos_counter,
-            "added_at": datetime.datetime.now()
-        })
-
-    def remove_client(self, user: telegram.User) -> None:
-        if not self.is_client(user.id):
-            raise IsNotClientError
-        self.clients.delete_one({"user.id": user.id})
-
-    def add_number_to_category_client(self, user: telegram.User, category: str, number: int) -> None:
-        if not self.is_client(user.id):
-            self.add_client(user)
-        current_value = self.clients.find_one({"user.id": user.id})["photos_counter"][category]
-        self.clients.update_one(
-            {"user.id": user.id},
-            {"$set": {
-                f"photos_counter.{category}": current_value + number,
-                "last_seen": datetime.datetime.now()
-            }}
-        )
-
-    def get_stats_of_client(self, user: telegram.User) -> dict:
-        if not self.is_client(user.id):
-            raise IsNotClientError
-        client = self.clients.find_one({"user.id": user.id})
-        counter = client["photos_counter"]
-        counter["all"] = sum(counter.values())
-        return counter
-
-    def get_stats_of_all_clients(self) -> list:
-        data = list(self.clients.find({}, {"_id": 0}))
-        for i in range(len(data)):
-            data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
-        return data
+photos = Photos()
+users = Users()

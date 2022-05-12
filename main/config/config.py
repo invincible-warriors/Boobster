@@ -7,6 +7,7 @@ class Colors:
     white = "\033[0m"
     purple = "\033[35m"
     blue = "\033[34m"
+    yellow = "\033[93m"
 
 
 class Symbols:
