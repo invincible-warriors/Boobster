@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 
 
 class Colors:
@@ -121,6 +122,8 @@ paths = list(
 )
 
 categories = ["full_nudes", "nudes", "aesthetics", "delete"]
+
+load_dotenv()
 
 TELEGRAM_BOT_HTTP_API_TOKEN = os.getenv("TELEGRAM_BOT_HTTP_API_TOKEN")
 TELEGRAM_PAYMENT_PROVIDER_TOKEN = os.getenv("TELEGRAM_PAYMENT_PROVIDER_TOKEN")

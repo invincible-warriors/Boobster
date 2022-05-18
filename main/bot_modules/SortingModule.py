@@ -4,8 +4,9 @@ import telegram
 from telegram import Update
 from telegram.ext import CallbackContext, CommandHandler, ConversationHandler, MessageHandler, filters
 
-from ..bot_modules.BotModule import BotModule
-from ..bot_modules.MarkupsModule import Markups
+from .BotModule import BotModule
+from .MarkupsModule import Markups
+from .LoggingModule import logger
 from ..config.config import (
     Colors as C,
     FilterersPhotos
@@ -20,22 +21,17 @@ class SortingModule(BotModule):
     SORTING = 0
 
     async def send_photo_sorting(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
-        photo_url = photos.get_photo_for_sorting()
+        photo = photos.get_photo_for_sorting()
         user = update.message.from_user
         while True:
             try:
-                await update.message.reply_photo(photo=photo_url)
+                await update.message.reply_photo(photo=photo["url"])
                 break
             except telegram.error.BadRequest:
-                self.logger.error(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
-                                  f"{C.red}BadRequest{C.white}. Deleted and blocked photo")
-                photos.delete_from_unsorted_photo_url(photo_url)
-                try:
-                    photos.add_to_blocked_photo_url(photo_url, user="bot")
-                except URLAlreadyExistsError:
-                    pass
-        users.set_current_url_sorter(user, photo_url)
-        self.logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: Set photo_url for sorter ")
+                logger.error_by_user(user, f"{C.red}BadRequest{C.white} - deleted and blocked photo")
+                photo = photos.get_photo_for_sorting()
+        users.set_current_photo_sorter(user, photo)
+        logger.info_by_user(user, f"Set photo_url for sorter")
         return self.SORTING
 
     async def start_sorting(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> int:
@@ -79,36 +75,30 @@ class SortingModule(BotModule):
             users.add_sorter(user)
 
         await update.message.reply_text("Удачной сортировки!", reply_markup=Markups.sorting)
-        self.logger.info(f"{C.blue}{update.message.from_user.first_name} (id:{user.id}){C.white}: started sorting")
+        logger.info_by_user(user, "Started sorting")
         await self.send_photo_sorting(update, context)
 
         return self.SORTING
 
-    async def filtering_filter(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+    async def sorting(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
         user = update.message.from_user
         user_reply = update.message.text
-        photo_url = users.get_current_url_sorter(user)
+        photo = users.get_current_photo_sorter(user)
         if user_reply != "delete":
-            try:
-                photos.add_to_allowed_photo_url(url=photo_url, categories=[user_reply], user=user)
-                self.logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
-                                 f"{C.green}added{C.white} photo to the AllowedPhotosURLs")
-            except URLAlreadyExistsError:
-                self.logger.warn(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
-                                 f"{C.yellow}some error was occurred{C.white} but handled")
-        photos.delete_from_unsorted_photo_url(url=photo_url)
-        self.logger.info(f"{C.blue}{user.first_name} (id:{user.id}){C.white}: "
-                         f"{C.red}removed{C.white} photo from the UnsortedPhotosURLs")
+            photos.add_to_allowed_photo(photo, user, categories=[user_reply])
+            logger.info_by_user(user, f"{C.green}Added{C.white} photo to the AllowedPhotosURLs")
+        photos.delete_from_unsorted_photo_url(url=photo["url"])
+        logger.info_by_user(user, f"{C.red}Removed{C.white} photo from the UnsortedPhotosURLs")
         users.add_one_to_category_sorter(user, category=user_reply)
         await self.send_photo_sorting(update, context)
 
     async def exit_sorting(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> int:
+        user = update.message.from_user
         await update.message.reply_text(
             "Спасибо за работу",
-            reply_markup=Markups.default if update.message.from_user.id != 516229295 else Markups.admin_default
+            reply_markup=Markups.default if user.id != 516229295 else Markups.admin_default
         )
-        self.logger.info(f"{C.blue}{update.message.from_user.first_name} (id:{update.message.from_user.id}){C.white}: "
-                         f"finished filtering")
+        logger.info_by_user(user, "Finished sorting")
         return ConversationHandler.END
 
     def get_handlers(self) -> list[ConversationHandler[CallbackContext | Any]]:
@@ -118,7 +108,7 @@ class SortingModule(BotModule):
                 states={
                     self.SORTING: [
                         MessageHandler(
-                            filters.Regex(f"^({'|'.join(Markups.keyboards.sorting[0])})$"), self.filtering_filter
+                            filters.Regex(f"^({'|'.join(Markups.keyboards.sorting[0])})$"), self.sorting
                         )
                     ]
                 },

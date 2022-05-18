@@ -1,7 +1,9 @@
 from telegram import Update
 from telegram.ext import CallbackContext, CommandHandler
 
-from ..bot_modules.BotModule import BotModule
+from .BotModule import BotModule
+from .ControlModule import Permissions, control
+from .LoggingModule import logger
 from ..config.config import Collections
 from ..config.config import Colors as C
 from ..database.database import photos, users
@@ -41,48 +43,40 @@ class StatisticsModule(BotModule):
             f"{Collections.unsorted}: {counters[Collections.unsorted]}\n"
             f"{Collections.blocked}: {counters[Collections.blocked]}"
         )
-        self.logger.info(f"Statistics of photos (asked by {C.blue}{update.message.from_user.first_name} "
-                         f"(id: {update.message.from_user.id}){C.white}): {counters}")
+        user = update.message.from_user
+        logger.info_by_user(user, f"Got statistics of {C.purple}photos{C.white}")
 
+    @control.permission(Permissions.sorter)
     async def get_sorter_stats_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
         user = update.message.from_user
-        if not users.is_sorter(user.id):
-            await update.message.reply_text(f"Вы не идентифицированы как сортировщик.")
-            return
         counter = users.get_stats_of_sorter(user)
         formatted_output = "\n".join(f"{category}: {number}" for category, number in counter.items())
-        self.logger.info(f"Statistics of sorter {C.blue}{user.first_name} (id:{user.id}){C.white}: {counter}")
         await update.message.reply_text(f"Ваша статистика (как сортировщика):\n{formatted_output}")
+        logger.info_by_user(user, f"Got statistics of {C.purple}sorter{C.white}")
 
+    @control.permission(Permissions.admin)
     async def get_sorters_stats_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
         user = update.message.from_user
-        if user.id != 516229295:
-            await update.message.reply_text("У вас нет доступа к этой команде")
-            return
         clients_stats = users.get_stats_of_all_sorters(sorting="ASC")
         formatted_output = self.formatted_statistics(clients_stats)
         await update.message.reply_html(f"Статистика всех сортировщиков:\n{formatted_output}")
-        self.logger.info(f"Statistics of sorters were asked by {C.blue}{user.first_name} (id:{user.id}){C.white}")
+        logger.info_by_user(user, f"Got statistics of {C.purple}sorters{C.white}")
 
+    @control.permission(Permissions.client)
     async def get_client_stats_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
         user = update.message.from_user
-        if not users.is_client(user.id):
-            await update.message.reply_text(f"Вы не идентифицированы как клиент.")
-            return
         counter = users.get_stats_of_client(user)
         formatted_output = "\n".join(f"{category}: {number}" for category, number in counter.items())
-        self.logger.info(f"Statistics of client {C.blue}{user.first_name} (id:{user.id}){C.white}: {counter}")
         await update.message.reply_text(f"Ваша статистика (как клиента):\n{formatted_output}")
+        logger.info_by_user(user, f"Got statistics of {C.purple}client{C.white}")
 
+    @control.permission(Permissions.admin)
     async def get_clients_stats_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
         user = update.message.from_user
-        if user.id != 516229295:
-            await update.message.reply_text("У вас нет доступа к этой команде")
-            return
         clients_stats = users.get_stats_of_all_clients()
         formatted_output = self.formatted_statistics(clients_stats)
         await update.message.reply_html(f"Статистика всех клиентов:\n{formatted_output}")
-        self.logger.info(f"Statistics of clients were asked by {C.blue}{user.first_name} (id:{user.id}){C.white}")
+        logger.info_by_user(user, f"Got statistics of {C.purple}clients{C.white}")
 
     def get_handlers(self) -> list[CommandHandler]:
         handlers = [

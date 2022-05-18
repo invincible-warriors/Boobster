@@ -17,7 +17,8 @@
                     "first_name": telegram.user.first_name,
                     "username": telegram.user.username
                 }
-            }
+            },
+            "hash": hash
         }
         ```
     * ### BlockedPhotosURLs

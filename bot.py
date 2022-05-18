@@ -8,10 +8,8 @@ from main.bot_modules.MarkupsModule import Markups
 from main.bot_modules.PhotosSenderModule import PhotosSenderModule
 from main.bot_modules.SortingModule import SortingModule
 from main.bot_modules.StatisticsModule import StatisticsModule
+from main.bot_modules.LoggingModule import logger
 from main.config import config
-
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 async def start(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
@@ -26,9 +24,9 @@ def main() -> None:
     application = ApplicationBuilder().token(config.TELEGRAM_BOT_HTTP_API_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
 
-    ControlModule.add_module(application, StatisticsModule(logger))
-    ControlModule.add_module(application, SortingModule(logger))
-    ControlModule.add_module(application, PhotosSenderModule(logger))
+    ControlModule.add_module(application, StatisticsModule())
+    ControlModule.add_module(application, SortingModule())
+    ControlModule.add_module(application, PhotosSenderModule())
 
     application.run_polling()
 

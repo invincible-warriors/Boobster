@@ -106,8 +106,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-config.sh
 .venv
+.env
 env/
 venv/
 ENV/
@@ -138,19 +138,14 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# Environment variables
-config.sh
-
 # PyCharm
 .idea
 
 # Test files
 test.py
-connect_to_ssh.sh
-
-# Database
-# unsorted_photos.json
+test2.py
+*.sh
 
 # Docker
 Dockerfile
-deploy_to_ecr.sh
+.dockerignore

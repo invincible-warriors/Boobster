@@ -11,6 +11,10 @@ class URLAlreadyExistsError(Exception):
     pass
 
 
+class PhotoAlreadyExistsError(Exception):
+    pass
+
+
 class URLBlocked(Exception):
     pass
 
@@ -47,11 +51,12 @@ class Database:
     """
     Main class of MongoDB
     """
+
     def __init__(
-        self,
-        user=config.MONGO_DB_USER,
-        password=config.MONGO_DB_PASSWORD,
-        cluster=config.MONGO_DB_CLUSTER,
+            self,
+            user=config.MONGO_DB_USER,
+            password=config.MONGO_DB_PASSWORD,
+            cluster=config.MONGO_DB_CLUSTER,
     ):
         self.mongo_client = pymongo.MongoClient(
             f"mongodb+srv://{user}:{password}@{cluster}.ejtej.mongodb.net/retryWrites=true&w=majority"
@@ -121,19 +126,25 @@ class Users(Database):
             raise IsNotSorterError
         self.sorters.delete_one({"user.id": user.id})
 
-    def set_current_url_sorter(self, user: telegram.User, photo_url: str) -> None:
+    def set_current_photo_sorter(self, user: telegram.User, photo: dict[str, str]) -> None:
         """
         Sets url as current sorter's url
 
         :param user: telegram.User
-        :param photo_url: photo URL
+        :param photo: dict of photo URL and hash
         :return: None
         """
         if not self.is_sorter(user.id):
             raise IsNotSorterError
-        self.sorters.update_one({"user.id": user.id}, {"$set": {"current_url": photo_url}})
+        self.sorters.update_one(
+            {"user.id": user.id},
+            {"$set": {
+                "photo.url": photo["url"],
+                "photo.hash": photo["hash"]
+            }}
+        )
 
-    def get_current_url_sorter(self, user: telegram.User) -> str:
+    def get_current_photo_sorter(self, user: telegram.User) -> str:
         """
         Returns currents sorter's url
 
@@ -142,16 +153,7 @@ class Users(Database):
         """
         if not self.is_sorter(user.id):
             raise IsNotSorterError
-        return self.sorters.find_one({"user.id": user.id})["current_url"]
-
-    def get_current_urls_sorters(self) -> list[str]:
-        """
-        Returns all sorters' urls
-
-        :return: all sorters' urls
-        """
-        photos_urls = [obj["current_url"] for obj in self.sorters.find({}, {"_id": 0, "current_url": 1})]
-        return photos_urls
+        return self.sorters.find_one({"user.id": user.id})["photo"]
 
     def add_one_to_category_sorter(self, user: telegram.User, category: str) -> None:
         """
@@ -194,7 +196,7 @@ class Users(Database):
         :return: list of statistics dicts of sorters
         """
         data = list(self.sorters.find({}, {"_id": 0}))
-        for i in range(len(data)):
+        for i in range(self.sorters.count_documents({})):
             data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
         if sorting:
             data.sort(key=lambda obj: obj["photos_counter"]["all"], reverse=(sorting == "ASC"))
@@ -281,7 +283,7 @@ class Users(Database):
 
     def get_stats_of_all_clients(self) -> list:
         data = list(self.clients.find({}, {"_id": 0}))
-        for i in range(len(data)):
+        for i in range(self.clients.count_documents({})):
             data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
         return data
 
@@ -290,11 +292,12 @@ class Photos(Database):
     """
     Subclass of MongoDB contains Photos Database
     """
+
     def __init__(
-        self,
-        user=config.MONGO_DB_USER,
-        password=config.MONGO_DB_PASSWORD,
-        cluster=config.MONGO_DB_CLUSTER,
+            self,
+            user=config.MONGO_DB_USER,
+            password=config.MONGO_DB_PASSWORD,
+            cluster=config.MONGO_DB_CLUSTER,
     ):
         super().__init__(user, password, cluster)
         self.allowed_photos = self.mongo_client.get_database("Photos").get_collection("AllowedPhotosURLs")
@@ -302,37 +305,31 @@ class Photos(Database):
         self.unsorted_photos = self.mongo_client.get_database("Photos").get_collection("UnsortedPhotosURLs")
         self.sorter_urls_stack = []
 
-    def add_to_allowed_photo_url(self, url: str, categories: list[str], user: telegram.User | str) -> None:
+    def add_to_allowed_photo(self, photo: dict[str, str], user: telegram.User | str, categories: list[str]) -> None:
         """
         Adds photo URL to the Photos.AllowedPhotosURLs database
 
-        :param url: photo URL
-        :param categories: photo categories
+        :param photo: dict of photo URL and hash
         :param user: telegram User who added the photo
+        :param categories: photo categories
         :return: None
-        :raises URLAlreadyExistsError: if url already exists
-        :raises URLBlocked: if url in blacklist
         """
-        if list(self.allowed_photos.find({"url": url})):
-            raise URLAlreadyExistsError
-        if list(self.blocked_photos.find({"url": url})):
-            raise URLBlocked
-
         if isinstance(user, telegram.User):
             added_by = {
-                    "id": user.id,
-                    "first_name": user.first_name,
-                    "username": user.username
-                }
+                "id": user.id,
+                "first_name": user.first_name,
+                "username": user.username
+            }
         else:
             added_by = user
         self.allowed_photos.insert_one({
-            "url": url,
+            "url": photo["url"],
             "categories": categories,
             "added_info": {
                 "at": datetime.datetime.now(),
                 "by": added_by
-            }
+            },
+            "hash": photo["hash"]
         })
 
     def delete_from_allowed_photo_url(self, url: str) -> None:
@@ -350,13 +347,7 @@ class Photos(Database):
 
         :param url: photo URL
         :return: None
-        :raises URLAlreadyExistsError: if url already exists
-        :raises URLBlocked: if url in blacklist
         """
-        if list(self.unsorted_photos.find({"url": url})):
-            raise URLAlreadyExistsError
-        if list(self.blocked_photos.find({"url": url})):
-            raise URLBlocked
         self.unsorted_photos.insert_one({"url": url})
 
     def delete_from_unsorted_photo_url(self, url: str) -> None:
@@ -375,17 +366,13 @@ class Photos(Database):
         :param url: photo URL
         :param user: telegram User who added the photo
         :return: None
-        :raises URLAlreadyExistsError: if url already exists
         """
-        if list(self.blocked_photos.find({"url": url})):
-            raise URLAlreadyExistsError
-
         if isinstance(user, telegram.User):
             added_by = {
-                    "id": user.id,
-                    "first_name": user.first_name,
-                    "username": user.username
-                }
+                "id": user.id,
+                "first_name": user.first_name,
+                "username": user.username
+            }
         else:
             added_by = user
         self.blocked_photos.insert_one({
@@ -406,7 +393,7 @@ class Photos(Database):
         self.blocked_photos.delete_one({"url": url})
 
     def create_sorter_urls_stack(self):
-        self.sorter_urls_stack = [obj["url"] for obj in self.unsorted_photos.find(limit=100)]
+        self.sorter_urls_stack = list(self.unsorted_photos.find({}, {"_id": 0, "url": 1, "hash": 1}).limit(100))
 
     def get_photo_for_sorting(self) -> str:
         """
@@ -416,8 +403,8 @@ class Photos(Database):
         """
         if not self.sorter_urls_stack:
             self.create_sorter_urls_stack()
-        url = self.sorter_urls_stack.pop()
-        return url
+        photo = self.sorter_urls_stack.pop()
+        return photo
 
     def get_one_random_photo_url(self) -> str:
         """
@@ -425,8 +412,8 @@ class Photos(Database):
 
         :return: photo URL
         """
-        allowed_photos_data = [obj["url"] for obj in self.allowed_photos.find()]
-        url = random.choice(allowed_photos_data)
+        with self.allowed_photos.aggregate([{"$sample": {"size": 1}}]) as photos_data:
+            url = list(photos_data)[0]["url"]
         return url
 
     def get_five_random_photo_urls(self) -> list[str]:
@@ -435,12 +422,13 @@ class Photos(Database):
 
         :return: photos URLs
         """
-        allowed_photos_data = [obj["url"] for obj in self.allowed_photos.find()]
-        random.shuffle(allowed_photos_data)
-        urls = allowed_photos_data[:5]
+        urls = []
+        with self.allowed_photos.aggregate([{"$sample": {"size": 5}}]) as photos_data:
+            for photo in photos_data:
+                urls.append(photo["url"])
         return urls
 
-    def get_one_photo_url_by_category(self, category: str) -> str:
+    def get_one_photo_by_category(self, category: str) -> str:
         """
         Returns one photo URL by category from the Photos.AllowedPhotosURLs database
 
@@ -449,8 +437,13 @@ class Photos(Database):
         """
         if category not in config.categories:
             raise CategoryNotFoundError
-        allowed_photos_data = [obj["url"] for obj in self.allowed_photos.find() if category in obj["categories"]]
-        url = random.choice(allowed_photos_data)
+        with self.allowed_photos.aggregate([
+            {"$match": {
+                "categories": {"$in": [category]}
+            }},
+            {"$sample": {"size": 1}}
+        ]) as photos_data:
+            url = list(photos_data)[0]["url"]
         return url
 
     def get_five_photo_by_category(self, category) -> list[str]:
@@ -462,9 +455,15 @@ class Photos(Database):
         """
         if category not in config.categories:
             raise CategoryNotFoundError
-        allowed_photos_data = [obj["url"] for obj in self.allowed_photos.find() if category in obj["categories"]]
-        random.shuffle(allowed_photos_data)
-        urls = allowed_photos_data[:5]
+        urls = []
+        with self.allowed_photos.aggregate([
+            {"$match": {
+                "categories": {"$in": [category]}
+            }},
+            {"$sample": {"size": 5}}
+        ]) as photos_data:
+            for photo in photos_data:
+                urls.append(photo["url"])
         return urls
 
     def get_stats_of_photos(self) -> dict:
@@ -474,7 +473,7 @@ class Photos(Database):
         :return: Dictionary with counters
         """
         allowed_photos_data = list(self.allowed_photos.find())
-        allowed_photos_counter = {"all": len(allowed_photos_data)}
+        allowed_photos_counter = {"all": self.allowed_photos.count_documents({})}
         for obj in allowed_photos_data:
             for category in obj["categories"]:
                 if category in allowed_photos_counter.keys():
@@ -482,11 +481,8 @@ class Photos(Database):
                 else:
                     allowed_photos_counter[category] = 1
 
-        unsorted_photos_data = self.unsorted_photos.find()
-        unsorted_photos_counter = len(list(unsorted_photos_data))
-
-        blocked_photos_data = self.blocked_photos.find()
-        blocked_photos_counter = len(list(blocked_photos_data))
+        unsorted_photos_counter = self.unsorted_photos.count_documents({})
+        blocked_photos_counter = self.blocked_photos.count_documents({})
 
         counters = {
             config.Collections.allowed: allowed_photos_counter,
