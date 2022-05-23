@@ -92,7 +92,8 @@ class SortingModule(BotModule):
         users.add_one_to_category_sorter(user, category=user_reply)
         await self.send_photo_sorting(update, context)
 
-    async def exit_sorting(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> int:
+    @staticmethod
+    async def exit_sorting(update: Update, context: CallbackContext.DEFAULT_TYPE) -> int:
         user = update.message.from_user
         await update.message.reply_text(
             "Спасибо за работу",

@@ -1,5 +1,3 @@
-import logging
-
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext
 
@@ -8,7 +6,6 @@ from main.bot_modules.MarkupsModule import Markups
 from main.bot_modules.PhotosSenderModule import PhotosSenderModule
 from main.bot_modules.SortingModule import SortingModule
 from main.bot_modules.StatisticsModule import StatisticsModule
-from main.bot_modules.LoggingModule import logger
 from main.config import config
 
 

@@ -1,5 +1,4 @@
 import datetime
-import random
 
 import pymongo
 import telegram
@@ -286,6 +285,10 @@ class Users(Database):
         for i in range(self.clients.count_documents({})):
             data[i]["photos_counter"]["all"] = sum(data[i]["photos_counter"].values())
         return data
+
+    def get_clients_list(self) -> list:
+        clients = [client["user"] for client in self.clients.find({}, {"_id": 0, "user": 1})]
+        return clients
 
 
 class Photos(Database):

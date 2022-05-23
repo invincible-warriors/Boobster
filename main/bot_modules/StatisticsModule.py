@@ -32,6 +32,7 @@ class StatisticsModule(BotModule):
         formatted_output = f"\n{'-' * hyphen_counter}\n".join(users_data)
         return formatted_output
 
+    @control.permission(Permissions.admin)
     async def get_photo_stats_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
         counters = photos.get_stats_of_photos()
         allowed_photos_formatted = "\n".join(
@@ -78,12 +79,21 @@ class StatisticsModule(BotModule):
         await update.message.reply_html(f"Статистика всех клиентов:\n{formatted_output}")
         logger.info_by_user(user, f"Got statistics of {C.purple}clients{C.white}")
 
+    @control.permission(Permissions.admin)
+    async def get_clients_list_command(self, update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
+        user = update.message.from_user
+        clients = users.get_clients_list()
+        formatted_output = "\n".join((f"@{client['username']} - {client['first_name']}" for client in clients))
+        await update.message.reply_html(f"Список всех клиентов:\n{formatted_output}")
+        logger.info_by_user(user, f"Got list of {C.purple}clients{C.white}")
+
     def get_handlers(self) -> list[CommandHandler]:
         handlers = [
             CommandHandler("photo_stats", self.get_photo_stats_command),
             CommandHandler("sorter_stats", self.get_sorter_stats_command),
             CommandHandler("sorters_stats", self.get_sorters_stats_command),
             CommandHandler("client_stats", self.get_client_stats_command),
-            CommandHandler("clients_stats", self.get_clients_stats_command)
+            CommandHandler("clients_stats", self.get_clients_stats_command),
+            CommandHandler("clients_list", self.get_clients_list_command)
         ]
         return handlers
