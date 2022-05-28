@@ -1,9 +1,18 @@
 import datetime
+import os
+from enum import Enum, auto
+from io import BytesIO
+from typing import Optional
 
+import imagehash
 import pymongo
+import requests
 import telegram
+import telegram.ext
+from PIL import Image
 
 from main.config import config
+from main.bot_modules.LoggingModule import logger
 
 
 class URLAlreadyExistsError(Exception):
@@ -125,10 +134,11 @@ class Users(Database):
             raise IsNotSorterError
         self.sorters.delete_one({"user.id": user.id})
 
-    def set_current_photo_sorter(self, user: telegram.User, photo: dict[str, str]) -> None:
+    def set_current_photo_sorter(self, user: telegram.User, photo: str, hash_: str) -> None:
         """
         Sets url as current sorter's url
 
+        :param hash_:
         :param user: telegram.User
         :param photo: dict of photo URL and hash
         :return: None
@@ -138,8 +148,8 @@ class Users(Database):
         self.sorters.update_one(
             {"user.id": user.id},
             {"$set": {
-                "photo.url": photo["url"],
-                "photo.hash": photo["hash"]
+                "photo.url": photo,
+                "photo.hash": hash_
             }}
         )
 
@@ -308,11 +318,20 @@ class Photos(Database):
         self.unsorted_photos = self.mongo_client.get_database("Photos").get_collection("UnsortedPhotosURLs")
         self.sorter_urls_stack = []
 
-    def add_to_allowed_photo(self, photo: dict[str, str], user: telegram.User | str, categories: list[str]) -> None:
+    def add_to_allowed_photo(
+            self,
+            user: telegram.User | str,
+            photo: str,
+            hash_: str,
+            categories: list[str],
+            nickname_of_model: Optional[str] = None
+    ) -> None:
         """
         Adds photo URL to the Photos.AllowedPhotosURLs database
 
-        :param photo: dict of photo URL and hash
+        :param nickname_of_model: Nickname of model
+        :param hash_: hash of photo
+        :param photo: PhotoSize.file_id or URL
         :param user: telegram User who added the photo
         :param categories: photo categories
         :return: None
@@ -325,33 +344,58 @@ class Photos(Database):
             }
         else:
             added_by = user
-        self.allowed_photos.insert_one({
-            "url": photo["url"],
+
+        now = datetime.datetime.now()
+
+        data_to_insert = {
+            "url": photo,
             "categories": categories,
+            "nickname_of_model": nickname_of_model,
             "added_info": {
-                "at": datetime.datetime.now(),
+                "at": now,
                 "by": added_by
             },
-            "hash": photo["hash"]
-        })
+            "hash": hash_
+        }
+        self.allowed_photos.insert_one(data_to_insert)
 
-    def delete_from_allowed_photo_url(self, url: str) -> None:
+    async def add_to_unsorted_photos(
+            self,
+            photo: str,
+            context: Optional[telegram.ext.CallbackContext] = None
+    ) -> str:
         """
-        Deletes photo URL from the Photos.AllowedPhotosURLs database
+        Adds photo to the Photos.UnsortedPhotosURLs database
 
-        :param url: photo URL
+        :param context:
+        :param photo: photo URL or PhotoSize
         :return: None
         """
-        self.allowed_photos.delete_one({"url": url})
+        urls = (photo["url"] for photo in
+                list(self.unsorted_photos.find({}, {"url": 1})) + list(self.allowed_photos.find({}, {"url": 1})))
+        if photo in urls:
+            raise URLAlreadyExistsError
+        logger.info(f"{photo} passed URL check")
 
-    def add_to_unsorted_photo_url(self, url: str) -> None:
-        """
-        Adds photo URL to the Photos.UnsortedPhotosURLs database
+        if "http" in photo:
+            file = BytesIO(requests.get(photo, stream=True).content)
+        else:
+            file = "PHOTO.jpg"
+            image = await context.bot.get_file(photo)
+            await image.download(file)
+        with Image.open(file) as image:
+            if file == "PHOTO.jpg":
+                os.remove(file)
+            hash_ = str(imagehash.average_hash(image, 16))
 
-        :param url: photo URL
-        :return: None
-        """
-        self.unsorted_photos.insert_one({"url": url})
+        hashes = (photo["hash"] for photo in
+                  list(self.unsorted_photos.find({}, {"hash": 1})) + list(self.allowed_photos.find({}, {"hash": 1})))
+        if hash_ in hashes:
+            raise PhotoAlreadyExistsError
+        logger.info(f"{photo} passed hash check")
+
+        self.unsorted_photos.insert_one({"url": photo, "hash": hash_})
+        return hash_
 
     def delete_from_unsorted_photo_url(self, url: str) -> None:
         """
@@ -396,7 +440,11 @@ class Photos(Database):
         self.blocked_photos.delete_one({"url": url})
 
     def create_sorter_urls_stack(self):
-        self.sorter_urls_stack = list(self.unsorted_photos.find({}, {"_id": 0, "url": 1, "hash": 1}).limit(100))
+        self.sorter_urls_stack = [
+            [photo["url"], photo["hash"]] for photo in self.unsorted_photos.find(
+                {}, {"_id": 0, "url": 1, "hash": 1}
+            ).limit(100)
+        ]
 
     def get_photo_for_sorting(self) -> str:
         """
@@ -494,6 +542,9 @@ class Photos(Database):
         }
 
         return counters
+
+    def get_nicknames(self) -> list[str]:
+        return list(self.allowed_photos.find({"nickname_of_model": {"$exists": 1}}))
 
 
 photos = Photos()

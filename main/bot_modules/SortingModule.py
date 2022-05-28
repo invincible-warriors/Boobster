@@ -21,11 +21,11 @@ class SortingModule(BotModule):
     SORTING = 0
 
     async def send_photo_sorting(self, update: Update, context: CallbackContext.DEFAULT_TYPE):
-        photo = photos.get_photo_for_sorting()
+        photo, hash_ = photos.get_photo_for_sorting()
         user = update.message.from_user
         while True:
             try:
-                await update.message.reply_photo(photo=photo["url"])
+                await update.message.reply_photo(photo)
                 break
             except telegram.error.BadRequest:
                 logger.error_by_user(user, f"{C.red}BadRequest{C.white} - deleted and blocked photo")
@@ -87,7 +87,7 @@ class SortingModule(BotModule):
         if user_reply != "delete":
             photos.add_to_allowed_photo(photo, user, categories=[user_reply])
             logger.info_by_user(user, f"{C.green}Added{C.white} photo to the AllowedPhotosURLs")
-        photos.delete_from_unsorted_photo_url(url=photo["url"])
+        photos.delete_from_unsorted_photo_url(url=photo)
         logger.info_by_user(user, f"{C.red}Removed{C.white} photo from the UnsortedPhotosURLs")
         users.add_one_to_category_sorter(user, category=user_reply)
         await self.send_photo_sorting(update, context)
